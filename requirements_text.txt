@@ -1,0 +1,1043 @@
+Documento de Requisitos del Producto
+Sistema de Gestión de Operaciones - Procesamiento de Arena
+Versión:
+ 1.0
+Fecha:
+ Enero 2026
+Ubicación:
+ Vaca Muerta, Argentina
+Audiencia:
+  Hugo, Ariel, Victorio
+1. Resumen Ejecutivo
+Sistema integral para gestionar operaciones de procesamiento de arena desde pedido hasta pago, diseñado para operación greenfield (nueva desde cero) en Vaca Muerta sirviendo a empresas petroleras.
+Propósito del Sistema:
+ Habilitar al negocio a lograr entrega just-in-time, trazabilidad completa y pago rápido a través de rastreo GPS, documentación automatizada y visibilidad en tiempo real.
+Objetivos del Negocio Que El Sistema Habilita:
+Entrega just-in-time (meta 99%)
+Trazabilidad completa (meta 100%)
+Pago rápido (meta DSO <30 días)
+Lo Que Hace El Sistema:
+Rastrea 100% de camiones con GPS
+Auto-genera facturas con prueba completa
+Provee visibilidad en tiempo real a clientes
+Hace cumplir requisitos de certificación de calidad
+Alerta sobre demoras y cuellos de botella
+Éxito = Sistema funciona confiablemente (>99% uptime) + Negocio lo usa efectivamente → Negocio logra objetivos
+2. Contexto del Negocio
+2.1 Mercado y Competencia
+Mercado:
+ 30 clientes potenciales en Vaca Muerta, comenzando con 2 (YPF, Vista Energy)
+Precio:
+ US$90-120/tonelada, margen objetivo 50%
+Break-even:
+ Vaca Muerta US$45-50/barril vs mercado US$60/barril
+Ventaja competitiva:
+ Producción local + calidad + just-in-time + visibilidad en tiempo real
+Competencia:
+ Transportan desde Entre Ríos (lejos, más lento)
+2.2 Operación Inicial (Greenfield)
+2 plantas de producción (3ra en 2028 si RIGI aprobado)
+226 camiones: 26 viejos (25-26 ton), 200 nuevos (50-55 ton)
+2 productos iniciales (tamaños de malla)
+Sin sistemas heredados, sin procesos existentes
+Sistema debe funcionar desde primera entrega
+2.3 Desafíos
+Clima argentino (lluvia, temperaturas extremas)
+Bloqueos de rutas y paros
+Regulaciones laborales complejas
+Infraestructura limitada
+3. Objetivos y Métricas
+3.1 Objetivos del Negocio (Lo Que La Empresa Busca Lograr)
+Estos son los resultados de negocio que la empresa desea. El sistema 
+habilita
+ estos objetivos pero no puede garantizarlos (dependen de operaciones, clima, comportamiento del cliente, etc.).
+#
+Objetivo del Negocio
+Meta
+Qué Afecta Esto
+1
+Entrega Just-In-Time
+99% a tiempo
+Operaciones, choferes, camiones, clima, tráfico, coordinación con cliente
+2
+Trazabilidad Completa
+100% documentado
+Cumplimiento ISO 9000, disciplina operacional
+3
+Pago Rápido
+DSO <30 días
+Comportamiento de pago del cliente, documentación completa
+4
+Calidad Certificada
+0% rechazos
+Proceso QC, calidad de producción, estándares ISO 9000
+5
+Eficiencia Operativa
+85% utilización flota
+Optimización despacho, planificación rutas, mantenimiento
+6
+Rentabilidad
+50% margen bruto
+Pricing, costos, eficiencia operacional
+3.2 Objetivos del Sistema (Lo Que El Sistema Debe Hacer)
+Estas son las capacidades que el sistema DEBE proveer para 
+habilitar
+ los objetivos del negocio arriba.
+Objetivo del Negocio
+El Sistema Debe Proveer
+Entrega Just-In-Time
+• Rastrear 100% de camiones con GPS (actualizaciones cada 30 seg)
+• Calcular ETA con precisión ±15 minutos
+• Alertar despachante cuando entrega demorada >30 min
+• Registrar todos los 12 checkpoints automáticamente
+• Proveer portal cliente con mapa de camiones en vivo
+Trazabilidad Completa
+• Almacenar log GPS inmutable
+• Capturar firma electrónica 100% de entregas
+• Vincular Certificado de Análisis a número de camión
+• Generar reporte de trazabilidad en <5 minutos
+• Mantener audit trail (sin eliminación de datos)
+Pago Rápido
+• Generar factura en <1 hora de entrega
+• Auto-adjuntar toda prueba (firma, certificado, GPS)
+• Enviar factura al cliente mismo día
+• Rastrear estado de pago y antigüedad
+• Alertar cuando factura >30 días sin pagar
+Calidad Certificada
+• Vincular certificado a lote y camión
+• Prevenir despacho sin certificado aprobado
+• Almacenar certificado accesible por 7 años
+• Permitir descarga del cliente en cualquier momento
+Eficiencia Operativa
+• Mostrar todos los 226 camiones en un mapa
+• Calcular rutas óptimas
+• Rastrear tiempo de espera en cada ubicación
+• Reportar utilización de flota diariamente
+• Identificar cuellos de botella automáticamente
+3.3 Métricas de Performance del Sistema (¿Es El Sistema Preciso y Útil?)
+Por Qué Estas Métricas Importan:
+Métricas tradicionales de sistema (uptime, velocidad) nos dicen si el sistema está FUNCIONANDO, pero no si está AYUDANDO. Necesitamos medir:
+Precisión:
+ ¿Son correctas las predicciones/recomendaciones?
+Confianza:
+ ¿Los usuarios creen y siguen la guía del sistema?
+Valor:
+ ¿El sistema realmente mejora las operaciones?
+Ejemplo:
+ Uptime del sistema = 99.9% no significa nada si los ETAs están equivocados 50% del tiempo y los despachantes ignoran las recomendaciones de ruta.
+IMPORTANTE - Enfoque de Mejora Progresiva:
+Las métricas a continuación se dividen en dos categorías:
+Métricas de Infraestructura/Confiabilidad
+ (Disponibilidad del Sistema, Calidad de Datos)
+✅ Deben ser ALTAS desde el Día 1
+✅ Dependen de buena arquitectura técnica, no de IA/ML
+✅ Targets no cambian con el tiempo
+Métricas de Predicción/Inteligencia
+ (Precisión de Predicciones, Rutas, Alertas)
+📈 Comienzan más CONSERVADORAS y mejoran con el tiempo
+📈 Requieren datos históricos reales para entrenar modelos de IA/ML
+📈 Mejoran continuamente a medida que el sistema "aprende"
+📈 Targets progresan: Mes 3 → Mes 6 → Mes 12
+Por Qué Este Enfoque:
+No queremos sobre-prometer y sub-entregar en predicciones
+Los modelos de IA necesitan datos del mundo real (clima, tráfico, tiempos de espera) que solo obtenemos operando
+Es mejor empezar conservador y superar expectativas que prometer 95% precisión desde Día 1 y fallar
+La confianza de usuarios en recomendaciones también crece gradualmente cuando ven que funcionan
+Estas miden si las predicciones, alertas y recomendaciones del sistema son 
+precisas y realmente usadas
+.
+Precisión de Predicciones
+Nota Importante:
+ Estas métricas mejorarán con el tiempo a medida que el sistema recopile más datos y los modelos de IA/ML aprendan de patrones reales. Los objetivos a continuación son progresivos.
+Métrica
+Mes 3 (Aprendizaje)
+Mes 6 (Mejorando)
+Mes 12 (Maduro)
+Qué Nos Dice Esto
+Precisión de ETA
+±20 min para 75%
+±15 min para 85%
+±15 min para 90%
+¿Son confiables nuestros ETAs? ¿Los clientes confían en ellos?
+Precisión Predicción A Tiempo
+80% correcta
+88% correcta
+95% correcta
+Cuando sistema dice "llegará a tiempo," ¿es correcto?
+Precisión Predicción de Demoras
+75% correcta
+85% correcta
+90% correcta
+Cuando sistema alerta "llegará tarde," ¿realmente llega tarde?
+Tasa Falsos Positivos (Alertas)
+<20%
+<15%
+<10%
+¿Con qué frecuencia el sistema da falsas alarmas?
+Tasa Falsos Negativos (Alertas Perdidas)
+<10%
+<7%
+<5%
+¿Con qué frecuencia el sistema no detecta problemas reales?
+Por Qué Progresivo:
+ Los modelos predictivos necesitan datos históricos reales (clima, tráfico, tiempos de espera en sitios específicos, patrones de cliente) para mejorar. Primeros 3 meses = recopilación de datos base. Meses 6-12 = modelos aprenden y mejoran continuamente.
+Precisión de Rutas y Optimización
+Nota Importante:
+ Optimización de rutas mejora con datos. Sistema aprende mejores rutas, patrones de tráfico, y tiempos de espera por ubicación a lo largo del tiempo.
+Métrica
+Mes 3 (Aprendizaje)
+Mes 6 (Mejorando)
+Mes 12 (Maduro)
+Qué Nos Dice Esto
+Adopción Recomendación de Ruta
+>45%
+>65%
+>80%
+¿Los despachantes realmente usan nuestras rutas sugeridas?
+Precisión Tiempo de Ruta
+±30 min para 75%
+±25 min para 80%
+±20 min para 85%
+¿Son realistas nuestras estimaciones de tiempo?
+Selección Ruta Óptima
+55% del tiempo
+65% del tiempo
+70% del tiempo
+¿Realmente encontramos las mejores rutas?
+Predicción Tiempo de Espera
+±20 min para 65%
+±15 min para 75%
+±10 min para 80%
+¿Podemos predecir cuánto esperarán los camiones?
+Por Qué Progresivo:
+ Sistema necesita aprender: (1) qué rutas son realmente más rápidas en práctica, (2) tiempos de espera típicos en cada sitio de cliente, (3) patrones de tráfico argentino, (4) impacto del clima. Confianza de despachantes también crece con el tiempo al ver que recomendaciones funcionan.
+Nota sobre Adopción de Ruta:
+ Esta métrica está alineada con "Tasa Override Manual". Si override es 40% (Mes 3), significa 60% confían en sistema. De ese 60%, no todas las rutas necesitan recomendación (algunas son obvias), por lo que 45% de adopción es realista.
+Efectividad de Alertas
+Nota Importante:
+ Alertas tempranas dependen de predicciones precisas, que mejoran con datos históricos.
+Métrica
+Mes 3 (Aprendizaje)
+Mes 6 (Mejorando)
+Mes 12 (Maduro)
+Qué Nos Dice Esto
+Tiempo Respuesta Alerta Crítica
+<8 min
+<6 min
+<5 min
+¿Qué tan rápido actúan los despachantes sobre alertas?
+Tasa Resolución de Alertas
+>80%
+>85%
+>90%
+¿Las alertas son accionables y se resuelven?
+Precisión de Alerta (Problema Existe)
+>75%
+>85%
+>90%
+Cuando alertamos, ¿realmente hay un problema?
+Valor Alerta Proactiva
+40% detectadas 30+ min antes
+50% detectadas 30+ min antes
+60% detectadas 30+ min antes
+¿Damos suficiente tiempo de advertencia?
+Por Qué Progresivo:
+ Tiempo de respuesta mejora cuando usuarios confían en sistema (menos falsos positivos). Alertas proactivas requieren modelos predictivos que aprenden patrones de demora específicos de cada ruta/sitio.
+Calidad y Confiabilidad de Datos
+Nota Importante:
+ Estas métricas tienen componentes técnicos (deben ser buenos desde inicio) Y componentes operacionales (mejoran con adopción y aprendizaje).
+Métrica
+Mes 3 (Aprendizaje)
+Mes 6 (Mejorando)
+Mes 12 (Maduro)
+Qué Nos Dice Esto
+Frescura Datos GPS
+<30 segundos
+<30 segundos
+<30 segundos
+¿Los datos de rastreo están actualizados?
+Pérdida Señal GPS
+<2% del tiempo
+<1.5% del tiempo
+<1% del tiempo
+¿Rastreamos continuamente?
+Datos Checkpoint Faltantes
+<5% de entregas
+<3% de entregas
+<2% de entregas
+¿Capturamos todos los checkpoints?
+Éxito Vinculación Certificado
+98%
+99%
+99.5-100%
+¿Funciona vinculación QC → Camión?
+Éxito Generación Factura
+97% en <1 hora
+99% en <1 hora
+99.5% en <1 hora
+¿Funciona la automatización confiablemente?
+Por Qué Algunos Son Progresivos:
+Frescura GPS:
+ Técnico puro - debe funcionar desde Día 1 ✅
+Pérdida Señal GPS:
+ Mejora al aprender zonas sin señal y planificar rutas alternativas 📈
+Checkpoints Faltantes:
+ Mejora con: (1) adopción de choferes, (2) calibración de geocercas, (3) refinamiento de procesos, (4) mejor entrenamiento 📈
+Vinculación Certificado:
+ Software nuevo siempre tiene casos límite. 98% Mes 3 es excelente, mejora a casi perfecto 📈
+Generación Factura:
+ Depende de múltiples inputs (firma, certificado, GPS). 97% auto-generación Mes 3, el 3% restante se genera manualmente mismo día 📈
+Ejemplo - Checkpoints Faltantes:
+Mes 3: 5% faltantes porque:
+- Choferes aprendiendo app nueva
+- Geocercas no calibradas perfectamente
+- No sabemos qué checkpoints son confusos
+- Algunos olvidan capturar firma
+Mes 12: 2% faltantes porque:
+- Choferes tienen hábito automático
+- Geocercas detectan entrada/salida perfectamente
+- Procesos refinados basado en experiencia
+- Alertas proactivas "no olvides firma"
+Adopción del Sistema y Usabilidad
+Nota Importante:
+ La adopción de usuarios crece con el tiempo a medida que confían en el sistema. Usabilidad debe ser buena desde el inicio.
+Métrica
+Mes 3
+Mes 6
+Mes 12
+Qué Nos Dice Esto
+Uso App Móvil (Choferes)
+>70% de entregas
+>85% de entregas
+>95% de entregas
+¿Los choferes realmente usan el sistema?
+Usuarios Activos Portal Cliente
+>40% de clientes
+>60% de clientes
+>80% de clientes
+¿Los clientes encuentran el portal valioso?
+Tasa Override Manual
+<40%
+<25%
+<15%
+¿Con qué frecuencia usuarios evitan recomendaciones?
+Frecuencia Login Usuario
+3x/semana roles clave
+4x/semana roles clave
+Diaria para roles clave
+¿Los usuarios están comprometidos?
+Utilización de Features
+>50% features usados
+>60% features usados
+>70% features usados
+¿Construimos features útiles?
+Por Qué Progresivo:
+Adopción requiere tiempo:
+ Choferes 70% Mes 3 (resistencia a tecnología), 95% Mes 12 (hábito establecido)
+Usuarios externos son más lentos:
+ Clientes 40% Mes 3 (no puedes forzarlos), 80% Mes 12 (ven valor)
+Confianza se gana:
+ Override 40% Mes 3 (baja confianza en IA), 15% Mes 12 (IA probó que funciona)
+Estas métricas están alineadas:
+ 40% override = 60% confían en sistema, lo cual permite 45% adopción de rutas (no todas necesitan recomendación)
+Disponibilidad del Sistema
+Nota Importante:
+ Estas métricas dependen de infraestructura técnica robusta y deben ser ALTAS desde el inicio. Son compromisos de nivel de servicio (SLA).
+Métrica
+Target (Día 1 en adelante)
+Qué Nos Dice Esto
+Uptime del Sistema
+>99.5% durante horas de negocio
+¿El sistema está disponible cuando se necesita?
+Tiempo Respuesta API
+<500ms para 95% de requests
+¿El sistema es suficientemente rápido?
+Éxito Modo Offline Móvil
+Funciona para 100% de entregas
+¿Pueden choferes trabajar sin internet?
+Tiempo Recuperación (Sistema Caído)
+<30 minutos
+¿Qué tan rápido podemos arreglar caídas?
+Por Qué No Progresivo:
+ Estos son requisitos de infraestructura básica. El negocio depende de que el sistema esté disponible y sea rápido desde el primer día. Modo offline es crítico para campo sin internet.
+Cómo Medir Estas Métricas:
+Precisión de ETA:
+1. Sistema calcula ETA: "Camión llegará a las 14:30"
+2. Llegada real: 14:25
+3. Diferencia: 5 minutos
+4. Resultado: Dentro de meta ±15 min ✓
+Rastrear sobre 100 entregas:
+- 92 llegadas dentro de ±15 min → 92% de precisión ✓
+Falso Positivo (Alerta Incorrecta):
+1. Sistema alerta: "Camión llegará tarde"
+2. Despachante investiga
+3. Camión llega a tiempo
+4. Resultado: Falsa alarma ✗
+Rastrear sobre 100 alertas:
+- 8 falsas alarmas → 8% tasa falsos positivos ✓
+Adopción Recomendación de Ruta:
+1. Sistema recomienda: "Tomar Ruta A (45 min)"
+2. Opciones del despachante: Ruta A, Ruta B, Ruta C
+3. Despachante selecciona: Ruta A
+4. Resultado: Recomendación seguida ✓
+Rastrear sobre 100 despachos:
+- 85 veces despachante eligió ruta recomendada → 85% adopción ✓
+Verificación Ruta Óptima:
+1. Sistema recomendó: Ruta A
+2. Tiempo real tomado: 43 min
+3. Rutas alternativas probadas por otros:
+   - Ruta B: 48 min
+   - Ruta C: 51 min
+4. Resultado: Nuestra recomendación FUE la más rápida ✓
+Rastrear sobre 100 entregas:
+- 72 veces nuestra ruta fue la más rápida → 72% selección óptima ✓
+3.4 Métricas de Performance del Negocio (Rastreadas por el Sistema)
+El sistema rastrea estas métricas de negocio para que gerencia pueda monitorear progreso hacia objetivos del negocio.
+Métrica
+Mes 3
+Mes 6
+Mes 12
+Rol del Sistema
+Tasa entrega a tiempo
+85%
+90%
+95%
+Rastrea
+ (no controla)
+Tiempo espera promedio
+<45 min
+<30 min
+<20 min
+Mide y alerta
+Utilización flota
+70%
+80%
+85%
+Calcula y reporta
+DSO
+<45 días
+<35 días
+<30 días
+Rastrea antigüedad de pago
+Disputas de factura
+<5%
+<2%
+<1%
+Provee prueba para prevenir
+Certificados completos
+100%
+100%
+100%
+Hace cumplir requisito
+4. Reglas del Negocio (Aplicables a Todo El Sistema)
+4.1 Reglas Críticas (No Negociables)
+RN-001: Trazabilidad Obligatoria
+Toda entrega DEBE tener: GPS tracking completo + Certificado de Análisis + Firma electrónica
+Sin excepciones - requisito ISO 9000 y contractual
+RN-002: Just-In-Time Sagrado
+Tiempo de entrega es make-or-break
+ETA preciso requerido
+Tiempo de espera <30 minutos objetivo
+RN-003: Certificado de Análisis
+Cada camión requiere certificado
+Análisis de laboratorio: 30 minutos
+Vinculado a número de camión específico
+Sin certificado → no se puede despachar
+RN-004: Firma Electrónica Obligatoria
+No se marca entrega como completa sin firma
+Firma incluye: nombre, título, timestamp, GPS, foto opcional
+Sin firma → no se genera factura
+RN-005: Flujo de Caja
+Factura solo se genera con prueba completa (firma + certificado + GPS)
+Toda prueba adjunta automáticamente
+Objetivo: cero disputas de factura
+4.2 Reglas Operativas
+RN-101: Pricing
+MSA pricing > customer-specific > base price
+Rango: US$90-120/ton
+Sigue mercado petrolero
+RN-102: Horas de Chofer
+Cumplir ley laboral argentina
+Sistema previene asignación si chofer en límite de horas
+RN-103: Mantenimiento
+Sistema previene asignación de camiones que necesitan mantenimiento
+Alertas automáticas cuando mantenimiento debido
+RN-104: QC Pass/Fail
+Lote que falla QC → no se puede despachar
+Sistema bloquea automáticamente
+5. Roles de Usuario
+Equipo de Operaciones
+Gerente de Operaciones
+Tareas Principales:
+Monitorear todos los pedidos y entregas activas
+Resolver problemas y cuellos de botella
+Revisar métricas de rendimiento
+Coordinar entre departamentos
+Pantallas Clave:
+ Dashboard, mapa de entregas, alertas
+Métrica de Éxito:
+ 99% entrega a tiempo
+Despachante
+Tareas Principales:
+Asignar camiones a entregas
+Planificar rutas óptimas
+Monitorear ubicaciones en tiempo real
+Manejar retrasos de entrega
+Pantallas Clave:
+ Mapa de camiones en vivo, planificador de rutas, lista de choferes
+Métrica de Éxito:
+ Maximizar utilización de flota
+Choferes
+Tareas Principales:
+Seguir ruta asignada
+Capturar firma de entrega
+Reportar tiempos de espera
+Subir fotos de entrega
+Herramienta Clave:
+ App móvil/tablet
+Métrica de Éxito:
+ Llegadas a tiempo, cero entregas perdidas
+Equipo de Producción y Calidad
+Gerente de Producción
+Tareas Principales:
+Programar tandas de producción
+Rastrear etapas de procesamiento
+Coordinar con equipo de QC
+Pantallas Clave:
+ Cronograma de producción, cola de pedidos
+Métrica de Éxito:
+ Cumplir fechas de entrega
+Técnico de Control de Calidad
+Tareas Principales:
+Realizar pruebas de laboratorio (30 minutos por muestra)
+Generar Certificado de Análisis
+Vincular certificado a camión específico
+Aprobar/rechazar lotes
+Pantallas Clave:
+ Cola de pruebas, generador de certificados
+Métrica de Éxito:
+ 100% entregas certificadas
+Equipo Comercial
+Representante de Ventas
+Tareas Principales:
+Crear nuevos pedidos (POs)
+Gestionar contratos marco
+Actualizar clientes sobre estado
+Manejar pedidos especiales
+Pantallas Clave:
+ Formulario de ingreso de pedidos, lista de clientes
+Métrica de Éxito:
+ Precisión de pedidos, satisfacción del cliente
+Atención al Cliente
+Tareas Principales:
+Responder preguntas "¿dónde está mi entrega?"
+Proveer ETAs a clientes
+Enviar notificaciones
+Resolver quejas
+Pantallas Clave:
+ Estado de pedidos, mapa de camiones en vivo
+Métrica de Éxito:
+ Tiempo de respuesta rápido, clientes contentos
+Equipo de Finanzas
+Gerente de Contabilidad
+Tareas Principales:
+Generar facturas después de entrega
+Adjuntar prueba de trazabilidad
+Rastrear estado de pago
+Monitorear DSO
+Pantallas Clave:
+ Generador de facturas, rastreador de pagos
+Métrica de Éxito:
+ DSO <30 días, cero disputas de facturas
+Usuarios Externos
+Usuarios Cliente
+ (Portal del Cliente)
+Tareas Principales:
+Rastrear sus entregas en tiempo real
+Ver ubicaciones de camiones en vivo en mapa
+Descargar certificados
+Ver historial de entregas
+Pantallas Clave:
+ Portal del cliente con mapa en vivo
+Métrica de Éxito:
+ Autoservicio, menos llamadas telefónicas
+Matriz de Permisos
+Rol
+Crear Pedidos
+Ver Todo
+Asignar Camiones
+Aprobar QC
+Generar Facturas
+Portal Cliente
+Admin
+✓
+✓
+✓
+✓
+✓
+✓
+Gerente de Operaciones
+✓
+✓
+✓
+✓
+✗
+✗
+Despachante
+✗
+✓ (logística)
+✓
+✗
+✗
+✗
+Choferes
+✗
+Propio solo
+✗
+✗
+✗
+✗
+Gerente de Producción
+✗
+Producción solo
+✗
+Ver solo
+✗
+✗
+Representante de Ventas
+✓
+Pedidos solo
+✗
+✗
+✗
+✗
+Atención al Cliente
+✗
+Pedidos/Entregas
+✗
+✗
+✗
+Ver todos
+Técnico de Control de Calidad
+✗
+QC solo
+✗
+✓
+✗
+✗
+Gerente de Contabilidad
+✗
+Facturas solo
+✗
+✗
+✓
+✗
+Usuarios Cliente
+✗
+Propios solo
+✗
+✗
+✗
+✓
+6. Arquitectura del Sistema
+6.1 Módulos (Orden de Prioridad)
+TIER 1 - CRÍTICO (Fase 1):
+├── Módulo 2: Logística y Trazabilidad ⭐ MÁXIMA PRIORIDAD
+├── Módulo 1: Gestión de Pedidos
+├── Módulo 3: Control de Calidad
+└── Módulo 4: Facturación y Pago
+TIER 2 - APOYO (Fase 1 si tiempo):
+├── Módulo 5: Inventario Básico
+└── Módulo 6: Gestión de Flota
+TIER 3 - FUTURO (Fase 2+):
+└── Módulo 7: Gestión de Producción
+6.2 Flujo de Datos (Integración)
+Leyenda de Módulos:
+M1 = Gestión de Pedidos
+M2 = Logística y Trazabilidad 
+M3 = Control de Calidad
+M4 = Facturación y Pago
+M5 = Rastreo de Inventario
+M6 = Gestión de Flota
+M7 = Gestión de Producción
+Flujo de Proceso Completo:
+PASO 1: PEDIDO
+M1 (Gestión de Pedidos): Cliente solicita arena, se crea orden
+PASO 2: VERIFICACIÓN
+M5 (Inventario): Verifica que hay stock disponible
+PASO 3: PRODUCCIÓN
+M7 (Producción): Procesa la arena (secado, tamizado, clasificación)
+PASO 4: CONTROL DE CALIDAD
+M3 (Control de Calidad): Técnico realiza pruebas de laboratorio (30 min)
+M3 genera Certificado de Análisis
+Certificado se vincula al camión que llevará esta carga
+PASO 5: LOGÍSTICA Y ENTREGA (TODO OCURRE EN M2)
+M2 (Logística y Trazabilidad) hace TODO lo siguiente:
+Despachante asigna camión desde M6 (Flota)
+GPS rastrea camión en tiempo real (actualizaciones cada 30 segundos)
+Sistema captura 12 checkpoints automáticamente con GPS
+Chofer captura FIRMA del cliente en tablet
+Chofer sube fotos de la entrega
+Sistema genera reporte completo de trazabilidad
+Datos que M2 envía a M4:
+Log GPS completo de todo el viaje
+Firma electrónica con timestamp y coordenadas GPS
+Fotos de la entrega
+Certificado de Análisis vinculado
+Timestamps de los 12 checkpoints
+PASO 6: FACTURACIÓN
+M4 (Facturación): Recibe todos los datos de M2
+M4 auto-genera factura con toda la prueba de entrega adjunta
+Factura se envía al cliente el mismo día
+PASO 7: PAGO
+Cliente recibe factura con documentación completa
+Cliente aprueba rápidamente (tiene toda la prueba)
+Pago en menos de 30 días
+NOTA IMPORTANTE:
+ GPS, Firma y Entrega NO son módulos separados. Todas estas funciones son parte de M2 (Logística y Trazabilidad).
+7. Módulo 1: Gestión de Pedidos
+7.1 Propósito
+Punto de entrada para todo el negocio. Gestiona POs individuales y MSAs (contratos marco) con órdenes de entrega.
+7.2 Estructura de Contratos
+Modelo Recomendado: MSA + Órdenes de Entrega
+El sistema soporta dos tipos de relaciones comerciales:
+Tipo A: Contrato Marco de Servicio (MSA) - RECOMENDADO para clientes principales
+Firma del MSA (Evento Único):
+Se firma UNA VEZ al inicio de la relación comercial (ANTES de primera entrega)
+Típicamente durante fase de discovery/negociación
+Vigencia: 1 año (renovable)
+Contiene:
+Pricing por producto (ej: malla 30/50 = US$95/ton)
+Términos de pago (ej: Net 30 días)
+Compromisos de volumen (ej: 500 ton/mes)
+Estándares de calidad (ISO 9000)
+Términos de entrega (48 horas lead time)
+Cláusulas legales, penalidades, fuerza mayor
+Ingresado al sistema como "MSA Activo"
+Firmado por: Gerentes Generales de ambas empresas
+Órdenes de Entrega (Operaciones Continuas):
+Se crean CADA VEZ que cliente necesita arena
+Ejemplo: "Necesito 50 ton, malla 30/50, mañana en Pozo X"
+Rep de ventas crea orden en sistema:
+Sistema detecta MSA activo
+Aplica automáticamente pricing y términos del MSA
+NO se requiere nueva firma
+NO se requiere negociación
+Proceso rápido: Llamada → Orden → Confirmación (minutos, no días)
+Tipo B: Orden de Compra Standalone (PO) - Para clientes ocasionales
+Sin contrato marco
+Cada orden es independiente
+Pricing y términos negociados caso por caso
+Requiere aprobación para cada orden
+Más lento, más administrativo
+Ejemplo de Timeline (Modelo MSA):
+DICIEMBRE 2025:
+└─ YPF firma MSA-YPF-2026 ✍️
+   ├─ Duración: Ene-Dic 2026
+   ├─ Pricing: US$95/ton para malla 30/50
+   └─ Términos: Net 30 días
+ENERO 2026 (Inicio de Operaciones):
+├─ 13 Ene: YPF llama "50 ton para mañana" 
+│           → Orden creada ORD-2026-0001 (sin firma)
+├─ 20 Ene: YPF llama "30 ton para viernes"
+│           → Orden creada ORD-2026-0015 (sin firma)
+└─ 28 Ene: YPF llama "75 ton próxima semana"
+            → Orden creada ORD-2026-0042 (sin firma)
+Todas las órdenes usan pricing/términos del MSA automáticamente
+7.3 Funcionalidad Principal
+Proceso de Creación de Orden:
+1. Cliente llama/envía pedido
+2. Ventas ingresa: Cliente, Producto, Cantidad, Fecha, Ubicación
+3. Sistema verifica:
+   - Cliente activo?
+   - Existe MSA activo? (aplica términos automáticamente)
+   - Stock suficiente?
+   - Fecha posible?
+4. Genera número único: ORD-2026-0001
+5. Confirmación enviada al cliente
+Flujo de Estado:
+Pendiente → Confirmado → En Producción → QC → Listo → 
+Despachado → Entregado → Completado → Facturado
+7.4 Capacidades por Rol
+Representante de Ventas:
+ Crear, ver, modificar (si no en producción)
+Gerente de Operaciones:
+ Ver todos, filtrar, priorizar
+Atención al Cliente:
+ Ver pedidos activos, comunicar estado a clientes
+Usuarios Cliente (futuro):
+ Ver propios, rastrear estado
+7.5 Datos Clave
+Número de pedido, cliente, productos (cantidad, precio)
+Fechas (pedido, entrega requerida, entrega real)
+Ubicación de entrega (dirección de pozo)
+Estado, valor total, términos de pago
+Vinculación a MSA (si aplica)
+8. Módulo 2: Logística y Trazabilidad ⭐
+8.1 Por Qué Es La Máxima Prioridad
+Sin este módulo, el negocio NO puede competir:
+Clientes requieren just-in-time (no pueden esperar)
+ISO 9000 requiere trazabilidad completa
+Facturas no se aprueban sin prueba de entrega
+Ventaja competitiva vs competidores
+8.2 Funcionalidad Principal
+GPS Tracking en Tiempo Real:
+226 camiones rastreados 24/7
+Actualización cada 30 segundos
+Mapa en vivo para despachante y cliente
+ETA calculado continuamente
+Ruta Completa Rastreada:
+Cantera (carga) → Buffer (opcional) → Pozo (cliente)
+     ↓                ↓                    ↓
+12 checkpoints automáticos con timestamp GPS
+12 Puntos de Control (Auto-timestamp):
+Camión asignado
+Carga inicia (Cantera)
+Carga completa
+Salida Cantera
+Llegada Buffer (si aplica)
+Salida Buffer
+Llegada Pozo ⚠️
+Tiempo espera inicia ⚠️
+Descarga inicia
+Descarga completa
+Firma capturada
+ ✅
+Salida Pozo
+Geocercas (Geofencing):
+Cantera, Buffer, Pozos (clientes), Zonas prohibidas
+Detección automática entrada/salida
+Alertas si camión entra zona prohibida
+Confirmación de Entrega:
+Firma electrónica en tablet
+Incluye: nombre, título, timestamp, GPS, foto
+Certificado de Análisis adjunto automáticamente
+Sistema marca "Completa" y notifica contabilidad
+8.3 Capacidades por Rol
+Despachante:
+ Ve todos los camiones, asigna, planifica rutas, monitorea esperas
+Choferes:
+ Ve su ruta, captura firma, reporta problemas
+Gerente de Operaciones:
+ Monitorea todo, identifica cuellos de botella
+Atención al Cliente:
+ Consulta estado de entregas para responder a clientes
+Usuarios Cliente:
+ Ve SUS camiones en vivo, recibe notificaciones
+8.4 Gestión de Tiempo de Espera
+Objetivo: <30 minutos promedio
+Timer automático (llega → comienza descarga)
+Reportes por ubicación de cliente
+Identifica sitios problemáticos
+8.5 Portal del Cliente
+Mapa en vivo (solo sus entregas)
+ETA en tiempo real
+Notificaciones WhatsApp/Email:
+"Camión despachado - ETA 14:30"
+"Llegando en 30 minutos"
+"Entrega completa - Certificado adjunto"
+Descarga: certificados, recibos, historial
+8.6 Reporte de Trazabilidad
+Para cada entrega se genera:
+Todos los 12 checkpoints con timestamps exactos
+Track GPS completo (mapa visual)
+Tiempos: viaje total, espera total
+Certificado de Análisis vinculado
+Firma electrónica + foto
+Se adjunta a factura para aprobación rápida
+9. Módulo 3: Control de Calidad
+9.1 Propósito
+Certificar que cada entrega cumple especificaciones exactas (ISO 9000).
+9.2 Proceso
+1. Lote listo → QC toma muestra
+2. Pruebas de lab (30 min):
+   - Tamaño de malla
+   - Pureza
+   - Redondez
+   - Humedad
+3. Sistema genera Certificado de Análisis
+4. Certificado vinculado a camión específico
+5. Aprobación → puede despachar
+   Rechazo → no se puede enviar (sistema bloquea)
+9.3 Capacidades por Rol
+Técnico de Control de Calidad:
+ Ingresar resultados, generar certificado, aprobar/rechazar
+Gerente de Producción:
+ Ver cola de pruebas, coordinar con QC
+Gerente de Operaciones:
+ Ver cola de pruebas, identificar cuellos de botella
+Despachante:
+ Ver estado de certificado antes de despachar camión
+Usuarios Cliente:
+ Descargar certificado, verificar especificaciones
+9.4 Contenido del Certificado
+Especificación producto, número de lote
+Fecha/hora de prueba
+Resultados de todas las pruebas
+Pasa/Falla
+Firma técnico QC
+10. Módulo 4: Facturación y Pago
+10.1 Propósito
+Generar facturas inmediatamente después de entrega con prueba completa adjunta → pago rápido.
+10.2 Proceso (Automatizado)
+1. Entrega completa (firma capturada)
+2. Sistema AUTO-genera factura con:
+   - Certificado de Análisis
+   - Firma electrónica
+   - Reporte de trazabilidad GPS
+3. Enviada al cliente mismo día
+4. Cliente tiene toda la prueba → aprueba rápido
+5. Pago en <30 días vs 60+ días tradicional
+10.3 Por Qué Acelera Pago
+Tradicional (60+ días):
+Día 1: Entrega → Día 3: Recibo papel llega → Día 5: Factura creada → 
+Día 10: Cliente pide prueba → Día 15: Documentos enviados → 
+Día 45: Cliente aprueba → Día 60: Pago
+Con Sistema (30 días):
+Día 1 10:30: Entrega → Día 1 10:31: Todo documentado → 
+Día 1 11:00: Factura enviada → Día 3: Cliente aprueba → 
+Día 30: Pago
+10.4 Capacidades por Rol
+Gerente de Contabilidad:
+ Genera con 1 click, rastrea pagos, monitorea DSO
+Gerente de Operaciones:
+ Monitorea flujo de caja, identifica clientes lentos
+Atención al Cliente:
+ Consulta estado de factura para responder a clientes
+10.5 Cumplimiento
+AFIP (autoridad tributaria argentina)
+Toda información tributaria incluida
+Términos de pago: Net 30 o Net 60 (según contrato)
+11. Módulos de Apoyo (Menor Prioridad)
+11.1 Módulo 5: Inventario Básico
+Niveles de stock actuales (toneladas)
+Ubicación: cantera, buffer, en tránsito
+Reservar para pedidos
+Alertas stock bajo
+No incluye:
+ Gestión compleja de depósito, puntos de reorden automatizados
+11.2 Módulo 6: Gestión de Flota
+Perfiles de camión (capacidad, tipo, estado)
+Asignación de chofer
+Cronograma de mantenimiento
+Rastreo de rendimiento
+No incluye:
+ Mantenimiento predictivo avanzado, optimización de combustible
+11.3 Módulo 7: Gestión de Producción
+Cronograma de producción
+Rastreo de etapa (secado, tamizado)
+Vinculación a QC
+Mínimo porque:
+ Solo 2 productos, proceso simple, operaciones manuales
+12. Cronograma de Implementación
+Fase 1: Núcleo (Meses 1-3) - DEBE FUNCIONAR
+✅ Gestión de Pedidos (básica)
+✅ Logística y GPS Tracking (completa)
+✅ Control de Calidad y Certificados
+✅ Facturación con trazabilidad
+✅ Portal del Cliente (básico)
+Objetivo:
+ Sistema operativo para primera entrega comercial
+Fase 2: Optimización (Meses 4-6)
+- Mejoras de gestión de flota
+- Analytics avanzados
+- App móvil para chofer
+- Automatización de flujo de trabajo
+Fase 3: Escala (Meses 7-12)
+- Soportar 10-15 clientes
+- Reporting avanzado
+- Integración con contabilidad
+- Características autoservicio cliente
+13. Fuera de Alcance (Fase 1)
+NO incluido - demasiado complejo o no necesario ahora:
+❌ Sistema ERP completo
+❌ Sistema CRM (solo 2 clientes)
+❌ Sistema MRP (solo 2 productos)
+❌ Integración equipo producción automatizada
+❌ E-commerce/pedidos online cliente
+❌ Apps móviles nativas (iOS/Android)
+❌ IA/ML avanzado
+❌ Integración con ERP cliente
+❌ Monitoreo reciclaje agua
+❌ Visión por computadora volumen/densidad
+Por qué:
+ Comenzar simple, enfoque en núcleo (Pedidos + Logística + Trazabilidad), agregar después si crece.
+14. Riesgos y Mitigación
+Riesgo
+Impacto
+Mitigación
+Sistema no listo antes primera entrega
+No podemos operar, perdemos clientes
+6 meses dev, solo features críticas
+GPS falla
+Sin trazabilidad, facturas demoradas
+Dispositivos redundantes, modo offline
+Clientes no adoptan portal
+Aún recibiendo llamadas
+Entrenar, mostrar valor, hacer simple
+Choferes resisten tech
+Sin firmas, datos faltantes
+Tablet simple, entrenamiento, más fácil que papel
+Internet falla en campo
+No captura firmas
+Modo offline, sincronizar después
+Clima interrumpe
+Retrasos, cambios de ruta
+Alertas tiempo real, reruteo dinámico, geocercas
+15. Preguntas Abiertas (A Resolver Antes de Dev)
+Productos
+¿Cuántos productos distintos estamos vendiendo?
+¿Son tamaños de malla diferentes, productos separados o variantes?
+Clientes
+¿Están confirmados 2 clientes o todavía en negociación?
+¿Cuáles son sus requisitos específicos?
+¿Algún término de contrato especial a considerar?
+Estructura MSA:
+¿Firmarán clientes MSA antes de primera entrega?
+¿Duración preferida del MSA? (6 meses, 1 año, 2 años)
+¿Auto-renovable o renovación manual?
+¿Compromisos de volumen (take-or-pay vs indicativo)?
+¿Revisión de pricing trimestral o anual?
+¿Cómo enviarán órdenes los clientes? (email, teléfono, portal)
+¿Quién autoriza órdenes del lado del cliente?
+¿Lead time mínimo requerido? (24h, 48h)
+Cronograma*
+¿Cuándo se espera la primera entrega comercial?
+¿Cuál es la fecha límite para que el sistema esté operativo?
+Presupuesto*
+¿Cuál es el presupuesto para desarrollo del sistema?
+¿Alguna restricción que necesitemos diseñar alrededor?
+Equipo y Soporte*
+¿Quién va a operar el sistema?
+¿Requisitos de entrenamiento?
+¿Disponibilidad de soporte de IT (in house or contrato externo)?
+*Los podemos ayudar a discutir opciones.
+16. Glosario
+Términos Técnicos:
+GPS:
+ Global Positioning System - rastreo satelital
+ETA:
+ Estimated Time of Arrival - tiempo estimado llegada
+DSO:
+ Days Sales Outstanding - días ventas pendientes
+ISO 9000:
+ Estándar internacional gestión calidad
+AFIP:
+ Administración Federal Ingresos Públicos (impuestos Argentina)
+MSA:
+ Master Service Agreement / Contrato Marco de Servicio - Contrato de largo plazo firmado una vez que cubre múltiples entregas futuras. Contiene pricing, términos y compromisos. Las órdenes de entrega individuales se vinculan al MSA automáticamente sin requerir nuevas firmas.
+PO:
+ Purchase Order / Orden de Compra - Orden standalone sin contrato marco
+Términos Operativos:
+Cantera:
+ Cantera/sitio extracción arena
+Pozo:
+ Sitio de pozo petrolero (ubicación cliente)
+Buffer:
+ Depósito/área staging arena procesada
+Geocerca:
+ Límite geográfico virtual para detección automática
+Just-in-Time:
+ Entrega exacta cuando se necesita (ni temprano ni tarde)
+Greenfield:
+ Operación nueva desde cero (no actualización)

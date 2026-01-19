@@ -1,0 +1,40 @@
+===========================================
+HOW TO INSTALL SUPABASE PACKAGE
+===========================================
+
+METHOD 1: Use the batch file (Easiest!)
+----------------------------------------
+1. Double-click "INSTALL_NOW.bat" in this folder
+2. Wait for it to finish
+3. Restart your dev server
+
+METHOD 2: Use Command Prompt
+----------------------------------------
+1. Press Windows Key + R
+2. Type: cmd
+3. Press Enter
+4. Type these commands (one at a time):
+
+   cd "C:\Projects\Sand Process\sand-process-app"
+   npm install @supabase/supabase-js
+
+5. Wait for installation to finish
+6. Restart your dev server
+
+METHOD 3: Change PowerShell Policy (Advanced)
+----------------------------------------
+1. Open PowerShell as Administrator
+2. Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+3. Then you can use npm in PowerShell
+
+===========================================
+AFTER INSTALLATION:
+===========================================
+1. Stop your dev server (Ctrl+C)
+2. Start it again: npm start
+3. Check browser console - should see "✅ Supabase package loaded"
+4. Your orders should appear!
+
+===========================================
+
+

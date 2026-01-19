@@ -1,0 +1,62 @@
+===========================================
+QUICK START GUIDE
+===========================================
+
+PROBLEM: PowerShell is blocking npm commands
+SOLUTION: Use Command Prompt or batch files
+
+===========================================
+OPTION 1: Use Batch Files (Easiest!)
+===========================================
+
+1. INSTALL SUPABASE:
+   - Double-click: INSTALL_NOW.bat
+   - Wait for it to finish
+
+2. START SERVER:
+   - Double-click: START_SERVER.bat
+   - Server will open in a new window
+   - Press Ctrl+C to stop it
+
+===========================================
+OPTION 2: Use Command Prompt
+===========================================
+
+1. Press Windows Key + R
+2. Type: cmd
+3. Press Enter
+4. Type these commands:
+
+   cd "C:\Projects\Sand Process\sand-process-app"
+   npm install @supabase/supabase-js
+   npm start
+
+===========================================
+OPTION 3: Fix PowerShell (One-time setup)
+===========================================
+
+1. Open PowerShell as Administrator:
+   - Right-click Start button
+   - Click "Windows PowerShell (Admin)"
+
+2. Run this command:
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+3. Type "Y" and press Enter
+
+4. Now you can use npm in PowerShell!
+
+===========================================
+AFTER SETUP:
+===========================================
+
+1. Make sure .env file exists with your Supabase credentials
+2. Install Supabase package (use INSTALL_NOW.bat or cmd)
+3. Start server (use START_SERVER.bat or cmd)
+4. Open browser to http://localhost:3000
+5. Check console - should see "✅ Supabase package loaded"
+6. Go to Orders page - your 3 orders should appear!
+
+===========================================
+
+
