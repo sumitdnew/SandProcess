@@ -27,6 +27,8 @@ import {
 import { invoicesApi, ordersApi } from '../services/api';
 import { supabase } from '../config/supabase';
 import { Invoice, PaymentStatus, Order } from '../types';
+import StatusChip from '../theme/StatusChip';
+import PageHeader from '../theme/PageHeader';
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
@@ -215,21 +217,21 @@ const BillingPage: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          {t('modules.billing.title')}
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => setOpenGenerateDialog(true)}
-          disabled={orders.length === 0}
-        >
-          {t('modules.billing.generateInvoice')}
-        </Button>
-      </Box>
+      <PageHeader
+        title={t('modules.billing.title')}
+        action={
+          <Button
+            variant="contained"
+            onClick={() => setOpenGenerateDialog(true)}
+            disabled={orders.length === 0}
+          >
+            {t('modules.billing.generateInvoice')}
+          </Button>
+        }
+      />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -303,11 +305,7 @@ const BillingPage: React.FC = () => {
                       <TableCell>${invoice.total.toLocaleString()}</TableCell>
                       <TableCell>{invoice.daysOutstanding}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={t(`paymentStatus.${invoice.paymentStatus}`)}
-                          color={getPaymentStatusColor(invoice.paymentStatus) as any}
-                          size="small"
-                        />
+                        <StatusChip status={invoice.paymentStatus} />
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -339,7 +337,7 @@ const BillingPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {t('modules.billing.invoiceNumber')}: {selectedInvoice?.invoiceNumber}
         </DialogTitle>
@@ -356,11 +354,7 @@ const BillingPage: React.FC = () => {
                 <Typography><strong>Subtotal:</strong> ${selectedInvoice.subtotal.toLocaleString()}</Typography>
                 <Typography><strong>Tax:</strong> ${selectedInvoice.tax.toLocaleString()}</Typography>
                 <Typography><strong>Total:</strong> ${selectedInvoice.total.toLocaleString()}</Typography>
-                <Chip
-                  label={t(`paymentStatus.${selectedInvoice.paymentStatus}`)}
-                  color={getPaymentStatusColor(selectedInvoice.paymentStatus) as any}
-                  sx={{ mt: 1 }}
-                />
+                <StatusChip status={selectedInvoice.paymentStatus} sx={{ mt: 1 }} />
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle2" sx={{ mt: 2 }}>{t('modules.billing.items')}:</Typography>
@@ -394,7 +388,7 @@ const BillingPage: React.FC = () => {
       </Dialog>
 
       {/* Generate Invoice Dialog */}
-      <Dialog open={openGenerateDialog} onClose={() => setOpenGenerateDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog className="animate-fade-in" open={openGenerateDialog} onClose={() => setOpenGenerateDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('modules.billing.generateInvoice')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -443,7 +437,7 @@ const BillingPage: React.FC = () => {
       </Dialog>
 
       {/* Payment Dialog */}
-      <Dialog open={openPaymentDialog} onClose={() => setOpenPaymentDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog className="animate-fade-in" open={openPaymentDialog} onClose={() => setOpenPaymentDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('modules.billing.recordPayment')}</DialogTitle>
         <DialogContent>
           {selectedInvoiceForPayment && (

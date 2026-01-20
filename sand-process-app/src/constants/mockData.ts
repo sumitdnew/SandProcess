@@ -406,11 +406,51 @@ export const mockInvoices: Invoice[] = [
   },
 ];
 
-// Mock Inventory
+// Mock Inventory (deprecated - use inventoryApi.getAll() instead)
 export const mockInventory: Inventory[] = [
-  { productId: '1', productName: 'Frac Sand 30/50', location: 'quarry', quantity: 500, reserved: 150, available: 350 },
-  { productId: '1', productName: 'Frac Sand 30/50', location: 'buffer', quantity: 200, reserved: 0, available: 200 },
-  { productId: '2', productName: 'Frac Sand 40/70', location: 'quarry', quantity: 300, reserved: 75, available: 225 },
-  { productId: '2', productName: 'Frac Sand 40/70', location: 'buffer', quantity: 150, reserved: 0, available: 150 },
+  { 
+    id: 'mock-1', 
+    productId: '1', 
+    productName: 'Frac Sand 30/50', 
+    location: 'quarry', 
+    quantity: 500, 
+    reserved: 150, 
+    available: 350,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  { 
+    id: 'mock-2', 
+    productId: '1', 
+    productName: 'Frac Sand 30/50', 
+    location: 'buffer', 
+    quantity: 200, 
+    reserved: 0, 
+    available: 200,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  { 
+    id: 'mock-3', 
+    productId: '2', 
+    productName: 'Frac Sand 40/70', 
+    location: 'quarry', 
+    quantity: 300, 
+    reserved: 75, 
+    available: 225,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  { 
+    id: 'mock-4', 
+    productId: '2', 
+    productName: 'Frac Sand 40/70', 
+    location: 'buffer', 
+    quantity: 150, 
+    reserved: 0, 
+    available: 150,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
 ];
 

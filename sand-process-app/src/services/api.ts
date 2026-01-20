@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { Database } from '../config/supabase';
-import { Order, Customer, Product, MSA, Truck, Driver, Delivery, QCTest, Invoice } from '../types';
+import { Order, Customer, Product, MSA, Truck, Driver, Delivery, QCTest, Invoice, Inventory, Setting } from '../types';
 
 type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 
@@ -103,6 +103,17 @@ export const msasApi = {
     return data.map(transformMSA);
   },
 
+  getById: async (id: string): Promise<MSA | null> => {
+    const { data, error } = await supabase
+      .from('msas')
+      .select('*, customers(name)')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data ? transformMSA(data as any) : null;
+  },
+
   getByCustomerId: async (customerId: string): Promise<MSA | null> => {
     const { data, error } = await supabase
       .from('msas')
@@ -145,6 +156,7 @@ export const msasApi = {
 function transformMSA(row: any): MSA {
   return {
     id: row.id,
+    msaNumber: `MSA-${row.id.substring(0, 8).toUpperCase()}`,
     customerId: row.customer_id,
     customerName: row.customers?.name || '',
     startDate: row.start_date,
@@ -164,7 +176,8 @@ export const ordersApi = {
       .select(`
         *,
         customers(name),
-        order_items(*, products(name))
+        order_items(*, products(name)),
+        msas(id, payment_terms)
       `)
       .order('created_at', { ascending: false });
     
@@ -189,7 +202,8 @@ export const ordersApi = {
       .select(`
         *,
         customers(name),
-        order_items(*, products(name))
+        order_items(*, products(name)),
+        msas(id, payment_terms)
       `)
       .eq('id', id)
       .single();
@@ -324,12 +338,27 @@ function transformOrder(row: any): Order {
     }
   }
   
+  // Handle MSA data
+  let paymentTerms: string | undefined;
+  let msaNumber: string | undefined;
+  if (row.msas) {
+    if (Array.isArray(row.msas)) {
+      paymentTerms = row.msas[0]?.payment_terms;
+      msaNumber = row.msas[0]?.id ? `MSA-${row.msas[0].id.substring(0, 8).toUpperCase()}` : undefined;
+    } else {
+      paymentTerms = row.msas.payment_terms;
+      msaNumber = row.msas.id ? `MSA-${row.msas.id.substring(0, 8).toUpperCase()}` : undefined;
+    }
+  }
+  
   return {
     id: row.id,
     orderNumber: row.order_number,
     customerId: row.customer_id,
     customerName: customerName,
     msaId: row.msa_id,
+    msaNumber: msaNumber,
+    paymentTerms: paymentTerms,
     products: products,
     deliveryDate: row.delivery_date,
     deliveryLocation: row.delivery_location,
@@ -500,6 +529,22 @@ export const qcTestsApi = {
     if (error) throw error;
     return data.map(transformQCTest);
   },
+
+  getById: async (id: string): Promise<QCTest | null> => {
+    const { data, error } = await supabase
+      .from('qc_tests')
+      .select(`
+        *,
+        products(name),
+        trucks(license_plate),
+        orders(order_number)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data ? transformQCTest(data) : null;
+  },
 };
 
 function transformQCTest(row: any): QCTest {
@@ -512,6 +557,7 @@ function transformQCTest(row: any): QCTest {
     productName: row.products?.name || '',
     status: row.status as any,
     testDate: row.test_date,
+    createdAt: row.created_at,
     results: row.results,
     certificateId: row.certificate_id,
     technicianId: row.technician_id,
@@ -532,6 +578,148 @@ export const invoicesApi = {
     return data.map(transformInvoice);
   },
 };
+
+// Inventory
+export const inventoryApi = {
+  getAll: async (): Promise<Inventory[]> => {
+    const { data, error } = await supabase
+      .from('inventory')
+      .select(`
+        *,
+        products(name)
+      `)
+      .order('location', { ascending: true });
+    
+    if (error) throw error;
+    
+    // Calculate reserved quantities from orders
+    const orders = await ordersApi.getAll();
+    const reservedMap = new Map<string, number>();
+    
+    orders.forEach(order => {
+      if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready') {
+        order.products.forEach(item => {
+          const key = `${item.productId}-${order.deliveryLocation || 'Cantera Principal'}`;
+          reservedMap.set(key, (reservedMap.get(key) || 0) + item.quantity);
+        });
+      }
+    });
+    
+    return data.map((row: any) => {
+      const location = row.location || 'Cantera Principal';
+      const key = `${row.product_id}-${location}`;
+      const reserved = reservedMap.get(key) || 0;
+      const quantity = parseFloat(row.quantity) || 0;
+      
+      return transformInventory(row, reserved, quantity);
+    });
+  },
+  
+  getByLocation: async (location: string): Promise<Inventory[]> => {
+    const all = await inventoryApi.getAll();
+    return all.filter(inv => inv.location === location);
+  },
+  
+  update: async (id: string, quantity: number): Promise<Inventory> => {
+    const { data, error } = await supabase
+      .from('inventory')
+      .update({ quantity, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select('*, products(name)')
+      .single();
+    
+    if (error) throw error;
+    
+    // Recalculate reserved
+    const orders = await ordersApi.getAll();
+    const reservedMap = new Map<string, number>();
+    orders.forEach(order => {
+      if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready') {
+        order.products.forEach(item => {
+          const key = `${item.productId}-${data.location}`;
+          reservedMap.set(key, (reservedMap.get(key) || 0) + item.quantity);
+        });
+      }
+    });
+    
+    const reserved = reservedMap.get(`${data.product_id}-${data.location}`) || 0;
+    return transformInventory(data, reserved, quantity);
+  },
+};
+
+function transformInventory(row: any, reserved: number, quantity: number): Inventory {
+  const location = row.location || 'Cantera Principal';
+  return {
+    id: row.id,
+    productId: row.product_id,
+    productName: row.products?.name || '',
+    location: location,
+    quantity: quantity,
+    reserved: reserved,
+    available: Math.max(0, quantity - reserved),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+// Settings
+export const settingsApi = {
+  getAll: async (): Promise<Setting[]> => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .order('key', { ascending: true });
+    
+    if (error) throw error;
+    return data.map(transformSetting);
+  },
+  
+  getByKey: async (key: string): Promise<Setting | null> => {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('*')
+      .eq('key', key)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data ? transformSetting(data) : null;
+  },
+  
+  getValue: async <T = any>(key: string, defaultValue?: T): Promise<T> => {
+    const setting = await settingsApi.getByKey(key);
+    if (!setting) {
+      if (defaultValue !== undefined) return defaultValue;
+      throw new Error(`Setting '${key}' not found`);
+    }
+    return setting.value as T;
+  },
+  
+  update: async (key: string, value: any): Promise<Setting> => {
+    const { data, error } = await supabase
+      .from('settings')
+      .update({ value, updated_at: new Date().toISOString() })
+      .eq('key', key)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return transformSetting(data);
+  },
+};
+
+function transformSetting(row: any): Setting {
+  return {
+    id: row.id,
+    key: row.key,
+    value: row.value,
+    description: row.description,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 function transformInvoice(row: any): Invoice {
   return {

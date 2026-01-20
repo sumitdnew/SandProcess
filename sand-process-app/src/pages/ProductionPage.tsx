@@ -36,6 +36,8 @@ import {
 } from '@mui/icons-material';
 import { ordersApi } from '../services/api';
 import { Order, OrderStatus } from '../types';
+import StatusChip from '../theme/StatusChip';
+import PageHeader from '../theme/PageHeader';
 
 interface ProductionStage {
   id: string;
@@ -157,12 +159,10 @@ const ProductionPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {t('common.production')}
-      </Typography>
+      <PageHeader title={t('modules.production.title')} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -286,15 +286,7 @@ const ProductionPage: React.FC = () => {
                               </Box>
                             </TableCell>
                             <TableCell>
-                              <Chip 
-                                label={order.status} 
-                                size="small" 
-                                color={
-                                  order.status === 'ready' ? 'success' :
-                                  order.status === 'qc' ? 'warning' :
-                                  order.status === 'in_production' ? 'info' : 'default'
-                                }
-                              />
+                              <StatusChip status={order.status} />
                             </TableCell>
                             <TableCell>
                               {order.status === 'confirmed' && (
@@ -360,7 +352,7 @@ const ProductionPage: React.FC = () => {
                                   {order.customerName}
                                 </Typography>
                               </Box>
-                              <Chip label={order.status} size="small" color="info" />
+                              <StatusChip status={order.status} />
                             </Box>
                             <Typography variant="body2" sx={{ mb: 2 }}>
                               Delivery: {new Date(order.deliveryDate).toLocaleDateString()}
@@ -490,7 +482,7 @@ const ProductionPage: React.FC = () => {
       </Grid>
 
       {/* Order Details Dialog */}
-      <Dialog open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} maxWidth="md" fullWidth>
+      <Dialog className="animate-fade-in" open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           Production Details: {selectedOrder?.orderNumber}
         </DialogTitle>

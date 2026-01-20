@@ -63,6 +63,7 @@ export interface Customer {
 
 export interface MSA {
   id: string;
+  msaNumber?: string; // Generated from id for display
   customerId: string;
   customerName: string;
   startDate: string;
@@ -86,6 +87,8 @@ export interface Order {
   customerId: string;
   customerName: string;
   msaId?: string;
+  msaNumber?: string;
+  paymentTerms?: string;
   products: Array<{
     productId: string;
     productName: string;
@@ -190,11 +193,12 @@ export interface QCTest {
   productName: string;
   status: QCStatus;
   testDate?: string;
+  createdAt?: string;
   results?: {
-    meshSize: { passed: boolean; value: string };
-    purity: { passed: boolean; value: number };
-    roundness: { passed: boolean; value: number };
-    moisture: { passed: boolean; value: number };
+    meshSize: { passed: boolean; value: string; required?: string };
+    purity: { passed: boolean; value: number; minRequired?: number };
+    roundness: { passed: boolean; value: number; minRequired?: number };
+    moisture: { passed: boolean; value: number; maxRequired?: number };
   };
   certificateId?: string;
   technicianId?: string;
@@ -253,12 +257,24 @@ export interface Invoice {
 }
 
 export interface Inventory {
+  id: string;
   productId: string;
-  productName: string;
-  location: 'quarry' | 'buffer' | 'in_transit';
+  productName?: string;
+  location: string;
   quantity: number; // tons
-  reserved: number; // tons
-  available: number; // tons
+  reserved: number; // tons (calculated)
+  available: number; // tons (calculated)
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Setting {
+  id: string;
+  key: string;
+  value: any; // JSONB - can be any value
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Geofence {

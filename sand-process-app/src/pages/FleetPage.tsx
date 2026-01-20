@@ -24,6 +24,8 @@ import {
 } from '@mui/material';
 import { trucksApi, driversApi } from '../services/api';
 import { Truck, Driver, TruckStatus } from '../types';
+import StatusChip from '../theme/StatusChip';
+import PageHeader from '../theme/PageHeader';
 
 const FleetPage: React.FC = () => {
   const { t } = useTranslation();
@@ -90,12 +92,10 @@ const FleetPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {t('modules.fleet.title')}
-      </Typography>
+      <PageHeader title={t('modules.fleet.title')} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -125,11 +125,7 @@ const FleetPage: React.FC = () => {
                     <TableCell>{truck.capacity} tons</TableCell>
                     <TableCell>{truck.type === 'old' ? 'Old (25-26t)' : 'New (50-55t)'}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={t(`truckStatus.${truck.status}`)}
-                        color={getStatusColor(truck.status) as any}
-                        size="small"
-                      />
+                      <StatusChip status={truck.status} />
                     </TableCell>
                     <TableCell>
                       <Button size="small" onClick={() => handleViewTruck(truck)}>
@@ -179,7 +175,7 @@ const FleetPage: React.FC = () => {
         )}
       </Paper>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           Truck: {selectedTruck?.licensePlate}
         </DialogTitle>
@@ -197,12 +193,7 @@ const FleetPage: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <Typography><strong>{t('common.status')}:</strong>
-                  <Chip
-                    label={t(`truckStatus.${selectedTruck.status}`)}
-                    color={getStatusColor(selectedTruck.status) as any}
-                    size="small"
-                    sx={{ ml: 1 }}
-                  />
+                  <StatusChip status={selectedTruck.status} sx={{ ml: 1 }} />
                 </Typography>
               </Grid>
               {selectedTruck.driverName && (

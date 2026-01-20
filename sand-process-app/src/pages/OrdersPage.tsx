@@ -22,12 +22,34 @@ import {
   TextField,
   MenuItem,
   InputAdornment,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { Add as AddIcon, LocalShipping as DispatchIcon, ArrowForward as NextStepIcon, Search as SearchIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  LocalShipping as DispatchIcon, 
+  ArrowForward as NextStepIcon, 
+  Search as SearchIcon,
+  Description as POIcon,
+  Download as DownloadIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
 import { ordersApi, trucksApi, driversApi } from '../services/api';
 import { supabase } from '../config/supabase';
 import { Order, OrderStatus, Truck, Driver } from '../types';
 import CreateOrderForm from '../components/orders/CreateOrderForm';
+import StatusChip from '../theme/StatusChip';
+import PageHeader from '../theme/PageHeader';
+import generatePurchaseOrderPDF from '../utils/generatePurchaseOrderPDF';
+
+const COMPANY_INFO = {
+  name: 'Sand Process Management Co.',
+  address: 'Vaca Muerta Industrial Park, Neuquén, Argentina',
+  phone: '+54 299 XXX-XXXX',
+  email: 'orders@sandprocess.com.ar',
+  taxId: 'CUIT: 30-XXXXXXXX-X',
+  website: 'www.sandprocess.com.ar',
+};
 
 const OrdersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -107,6 +129,15 @@ const OrdersPage: React.FC = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedOrder(null);
+  };
+
+  const handleGeneratePO = async (order: Order) => {
+    try {
+      await generatePurchaseOrderPDF(order.id);
+    } catch (error: any) {
+      console.error('Error generating PO:', error);
+      alert(error.message || 'Failed to generate Purchase Order. Please try again.');
+    }
   };
 
   const handleOpenDispatchDialog = async (order: Order) => {
@@ -274,21 +305,21 @@ const OrdersPage: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          {t('modules.orders.title')}
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpenCreateForm(true)}
-        >
-          {t('modules.orders.createOrder')}
-        </Button>
-      </Box>
+      <PageHeader
+        title={t('modules.orders.title')}
+        action={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenCreateForm(true)}
+          >
+            {t('modules.orders.createOrder')}
+          </Button>
+        }
+      />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -380,11 +411,7 @@ const OrdersPage: React.FC = () => {
                   <TableCell>${order.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <Chip
-                        label={t(`orderStatus.${order.status}`)}
-                        color={getStatusColor(order.status) as any}
-                        size="small"
-                      />
+                      <StatusChip status={order.status} />
                       {order.status === 'ready' || order.status === 'confirmed' ? (
                         orderCertificates[order.id] ? (
                           <Chip
@@ -409,6 +436,15 @@ const OrdersPage: React.FC = () => {
                       <Button size="small" onClick={() => handleViewOrder(order)}>
                         {t('common.view')}
                       </Button>
+                      <Tooltip title="Download Purchase Order">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleGeneratePO(order)}
+                          color="primary"
+                        >
+                          <POIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       {canUpdateStatus(order) && (
                         <Button 
                           size="small" 
@@ -456,9 +492,29 @@ const OrdersPage: React.FC = () => {
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {selectedOrder ? t('modules.orders.orderNumber') + ': ' + selectedOrder.orderNumber : t('modules.orders.createOrder')}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>
+              {selectedOrder ? t('modules.orders.orderNumber') + ': ' + selectedOrder.orderNumber : t('modules.orders.createOrder')}
+            </span>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {selectedOrder && (
+                <Tooltip title="Download Purchase Order">
+                  <IconButton 
+                    onClick={() => selectedOrder && handleGeneratePO(selectedOrder)}
+                    size="small"
+                    color="primary"
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <IconButton onClick={handleCloseDialog} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </Box>
         </DialogTitle>
         <DialogContent>
           {selectedOrder ? (
@@ -491,10 +547,7 @@ const OrdersPage: React.FC = () => {
                 <Typography><strong>{t('modules.orders.totalAmount')}:</strong> ${selectedOrder.totalAmount.toLocaleString()}</Typography>
               </Grid>
               <Grid item xs={12}>
-                <Chip
-                  label={t(`orderStatus.${selectedOrder.status}`)}
-                  color={getStatusColor(selectedOrder.status) as any}
-                />
+                <StatusChip status={selectedOrder.status} />
               </Grid>
             </Grid>
           ) : (
@@ -502,7 +555,16 @@ const OrdersPage: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
+          {selectedOrder && (
+            <Button 
+              startIcon={<POIcon />}
+              onClick={() => selectedOrder && handleGeneratePO(selectedOrder)}
+              variant="outlined"
+            >
+              Download PO
+            </Button>
+          )}
+          <Button onClick={handleCloseDialog}>{t('common.close') || 'Close'}</Button>
         </DialogActions>
       </Dialog>
 
@@ -513,7 +575,7 @@ const OrdersPage: React.FC = () => {
       />
 
       {/* Dispatch Dialog */}
-      <Dialog open={openDispatchDialog} onClose={() => setOpenDispatchDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog className="animate-fade-in" open={openDispatchDialog} onClose={() => setOpenDispatchDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           Dispatch Order: {dispatchOrder?.orderNumber}
         </DialogTitle>

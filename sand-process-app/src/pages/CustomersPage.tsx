@@ -23,9 +23,11 @@ import {
   TextField,
   InputAdornment,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
-import { customersApi, ordersApi } from '../services/api';
+import { Search as SearchIcon, Add as AddIcon, Description as ContractIcon } from '@mui/icons-material';
+import { customersApi, ordersApi, msasApi } from '../services/api';
 import { Customer } from '../types';
+import PageHeader from '../theme/PageHeader';
+import generateMSAPDF from '../utils/generateMSAPDF';
 
 const CustomersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -37,6 +39,7 @@ const CustomersPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [generatingMSA, setGeneratingMSA] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     code: '',
@@ -78,6 +81,31 @@ const CustomersPage: React.FC = () => {
     setSelectedCustomer(null);
   };
 
+  const handleGenerateMSA = async (customer: Customer) => {
+    if (!customer) return;
+
+    try {
+      setGeneratingMSA(true);
+      
+      // Fetch the customer's active MSA
+      const msa = await msasApi.getByCustomerId(customer.id);
+      
+      if (!msa) {
+        alert(`No active MSA found for customer "${customer.name}". Please create an MSA first.`);
+        setGeneratingMSA(false);
+        return;
+      }
+
+      // Generate PDF using the MSA ID
+      await generateMSAPDF(msa.id);
+    } catch (error: any) {
+      console.error('Error generating MSA:', error);
+      alert(error.message || 'Failed to generate MSA. Please try again.');
+    } finally {
+      setGeneratingMSA(false);
+    }
+  };
+
   const handleCreateCustomer = async () => {
     if (!newCustomer.name || !newCustomer.code || !newCustomer.contactPerson || !newCustomer.email) {
       alert(t('modules.customers.fillRequiredFields'));
@@ -117,21 +145,21 @@ const CustomersPage: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          {t('modules.customers.title')}
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpenCreateDialog(true)}
-        >
-          {t('modules.customers.addCustomer')}
-        </Button>
-      </Box>
+      <PageHeader
+        title={t('modules.customers.title')}
+        action={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpenCreateDialog(true)}
+          >
+            {t('modules.customers.addCustomer')}
+          </Button>
+        }
+      />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -244,7 +272,7 @@ const CustomersPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {t('modules.customers.customerDetails')}: {selectedCustomer?.name}
         </DialogTitle>
@@ -284,12 +312,20 @@ const CustomersPage: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Close          </Button>
+          <Button
+            startIcon={<ContractIcon />}
+            onClick={() => selectedCustomer && handleGenerateMSA(selectedCustomer)}
+            disabled={generatingMSA || !selectedCustomer}
+            variant="outlined"
+          >
+            {generatingMSA ? 'Generating...' : 'Generate MSA'}
+          </Button>
+          <Button onClick={handleCloseDialog}>Close</Button>
         </DialogActions>
       </Dialog>
 
       {/* Create Customer Dialog */}
-      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog className="animate-fade-in" open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('modules.customers.addCustomer')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>

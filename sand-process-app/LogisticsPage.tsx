@@ -35,7 +35,6 @@ import {
   AlertTitle,
 } from '@mui/material';
 import {
-  Add as AddIcon,
   LocalShipping as TruckIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
@@ -55,8 +54,6 @@ import L from 'leaflet';
 import { deliveriesApi, ordersApi, trucksApi, driversApi } from '../services/api';
 import { supabase } from '../config/supabase';
 import { Delivery, Order, Truck, Driver } from '../types';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -515,39 +512,40 @@ const LogisticsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.logistics.title')}
-        subtitle={
-          <>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            {t('modules.logistics.title')}
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
             <Badge badgeContent={activeDeliveries} color="primary" sx={{ mr: 2 }}>
               <TruckIcon />
             </Badge>
             {activeDeliveries} {t('modules.logistics.activeDeliveries')} • {deliveries.length} {t('modules.logistics.totalDeliveries')}
-          </>
-        }
-        action={
-          <>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={loadData}
-            >
-              {t('common.refresh')}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAssignDialog}
-              disabled={orders.length === 0}
-            >
-              {t('modules.logistics.assignTruck')}
-            </Button>
-          </>
-        }
-      />
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadData}
+          >
+            {t('common.refresh')}
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenAssignDialog}
+            disabled={orders.length === 0}
+          >
+            {t('modules.logistics.assignTruck')}
+          </Button>
+        </Box>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -689,11 +687,12 @@ const LogisticsPage: React.FC = () => {
                   filteredDeliveries.map((delivery) => (
                     <Card
                       key={delivery.id}
-                      className="card-hover"
                       sx={{ 
                         mb: 2, 
+                        cursor: 'pointer',
                         border: selectedDelivery?.id === delivery.id ? 2 : 1,
                         borderColor: selectedDelivery?.id === delivery.id ? 'primary.main' : 'divider',
+                        '&:hover': { bgcolor: 'action.hover' }
                       }}
                       onClick={() => setSelectedDelivery(delivery)}
                     >
@@ -702,7 +701,12 @@ const LogisticsPage: React.FC = () => {
                           <Typography variant="subtitle2" fontWeight="bold">
                             {delivery.orderNumber}
                           </Typography>
-                          <StatusChip status={delivery.status} />
+                          <Chip 
+                            label={delivery.status} 
+                            size="small" 
+                            color={getStatusColor(delivery.status) as any}
+                            icon={getStatusIcon(delivery.status)}
+                          />
                         </Box>
                         <Typography variant="body2" color="textSecondary">
                           {delivery.customerName}
@@ -733,7 +737,11 @@ const LogisticsPage: React.FC = () => {
                       <Typography variant="h6">
                         {t('modules.logistics.deliveryDetails')}: {selectedDelivery.orderNumber}
                       </Typography>
-                      <StatusChip status={selectedDelivery.status} />
+                      <Chip 
+                        label={selectedDelivery.status} 
+                        color={getStatusColor(selectedDelivery.status) as any}
+                        icon={getStatusIcon(selectedDelivery.status)}
+                      />
                     </Box>
                   </Grid>
 
@@ -823,7 +831,7 @@ const LogisticsPage: React.FC = () => {
                         </Box>
                       </Box>
                     ) : (
-                      <Alert className="animate-slide-in-up" severity="info" icon={<LocationIcon />}>
+                      <Alert severity="info" icon={<LocationIcon />}>
                         {t('modules.logistics.noCheckpoints')}
                       </Alert>
                     )}
@@ -867,7 +875,7 @@ const LogisticsPage: React.FC = () => {
                   {/* Signature Section (if delivered) */}
                   {selectedDelivery.signature && (
                     <Grid item xs={12}>
-                      <Alert className="animate-slide-in-up" severity="success" icon={<CheckCircleIcon />}>
+                      <Alert severity="success" icon={<CheckCircleIcon />}>
                         <AlertTitle>Delivery Confirmed with Electronic Signature</AlertTitle>
                         <Grid container spacing={2} sx={{ mt: 1 }}>
                           <Grid item xs={12} md={6}>
@@ -924,7 +932,7 @@ const LogisticsPage: React.FC = () => {
       )}
 
       {/* Assign Delivery Dialog */}
-      <Dialog className="animate-fade-in" open={openAssignDialog} onClose={() => setOpenAssignDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openAssignDialog} onClose={() => setOpenAssignDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           {t('modules.logistics.assignTruck')}
         </DialogTitle>
@@ -951,7 +959,7 @@ const LogisticsPage: React.FC = () => {
             </Grid>
             {selectedOrder && (
               <Grid item xs={12}>
-                <Alert className="animate-slide-in-up" severity="info">
+                <Alert severity="info">
                   <Typography variant="body2">
                     <strong>Customer:</strong> {selectedOrder.customerName}
                   </Typography>
@@ -1024,7 +1032,6 @@ const LogisticsPage: React.FC = () => {
 
       {/* Delivery Confirmation Dialog */}
       <Dialog 
-        className="animate-fade-in"
         open={openDeliveryConfirmDialog} 
         onClose={() => setOpenDeliveryConfirmDialog(false)} 
         maxWidth="md" 
@@ -1227,7 +1234,7 @@ const LogisticsPage: React.FC = () => {
 
               {/* Requirements Alert */}
               <Grid item xs={12}>
-                <Alert className="animate-slide-in-up" severity="info" icon={<CheckCircleIcon />}>
+                <Alert severity="info" icon={<CheckCircleIcon />}>
                   <AlertTitle>Signature Requirements (RN-004)</AlertTitle>
                   <Box component="ul" sx={{ m: 0, pl: 2 }}>
                     <li>

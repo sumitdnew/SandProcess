@@ -23,6 +23,8 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { deliveriesApi, ordersApi } from '../services/api';
 import { Delivery, Order } from '../types';
+import StatusChip from '../theme/StatusChip';
+import PageHeader from '../theme/PageHeader';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -84,12 +86,10 @@ const CustomerPortalPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {t('common.customerPortal')}
-      </Typography>
+      <PageHeader title={t('common.customerPortal')} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -164,7 +164,7 @@ const CustomerPortalPage: React.FC = () => {
                         >
                           <TableCell>{order.orderNumber}</TableCell>
                           <TableCell>
-                            <Chip label={order.status} size="small" />
+                            <StatusChip status={order.status} />
                           </TableCell>
                         </TableRow>
                       ))

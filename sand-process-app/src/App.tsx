@@ -1,11 +1,13 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { I18nextProvider } from 'react-i18next';
 import { AppProvider } from './context/AppContext';
-import './i18n/config';
+import theme from './theme/theme';
+import GlobalStyles from './theme/GlobalStyles';
+import i18n from './i18n/config';
 import MainLayout from './components/layout/MainLayout';
-
-// Pages
 import Dashboard from './pages/Dashboard';
 import OrdersPage from './pages/OrdersPage';
 import LogisticsPage from './pages/LogisticsPage';
@@ -15,46 +17,37 @@ import InventoryPage from './pages/InventoryPage';
 import FleetPage from './pages/FleetPage';
 import ProductionPage from './pages/ProductionPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
-import MSAPage from './pages/MSAPage';
 import CustomersPage from './pages/CustomersPage';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
+import MSAPage from './pages/MSAPage';
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <AppProvider>
-        <Router>
-          <MainLayout>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/logistics" element={<LogisticsPage />} />
-              <Route path="/quality" element={<QualityPage />} />
-              <Route path="/billing" element={<BillingPage />} />
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/fleet" element={<FleetPage />} />
-              <Route path="/production" element={<ProductionPage />} />
-              <Route path="/customer-portal" element={<CustomerPortalPage />} />
-              <Route path="/msas" element={<MSAPage />} />
-              <Route path="/customers" element={<CustomersPage />} />
-            </Routes>
-          </MainLayout>
-        </Router>
-      </AppProvider>
+      <GlobalStyles />
+      <I18nextProvider i18n={i18n}>
+        <AppProvider>
+          <BrowserRouter>
+            <MainLayout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/logistics" element={<LogisticsPage />} />
+                <Route path="/quality" element={<QualityPage />} />
+                <Route path="/billing" element={<BillingPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/fleet" element={<FleetPage />} />
+                <Route path="/production" element={<ProductionPage />} />
+                <Route path="/customer-portal" element={<CustomerPortalPage />} />
+                <Route path="/customers" element={<CustomersPage />} />
+                <Route path="/msas" element={<MSAPage />} />
+              </Routes>
+            </MainLayout>
+          </BrowserRouter>
+        </AppProvider>
+      </I18nextProvider>
     </ThemeProvider>
   );
 }
 
 export default App;
-

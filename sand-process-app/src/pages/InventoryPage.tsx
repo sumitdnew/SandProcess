@@ -17,20 +17,13 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { ordersApi, productsApi } from '../services/api';
-
-interface InventoryItem {
-  productId: string;
-  productName: string;
-  location: string;
-  quantity: number;
-  reserved: number;
-  available: number;
-}
+import { inventoryApi } from '../services/api';
+import { Inventory } from '../types';
+import PageHeader from '../theme/PageHeader';
 
 const InventoryPage: React.FC = () => {
   const { t } = useTranslation();
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventory, setInventory] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,50 +36,9 @@ const InventoryPage: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const [orders, products] = await Promise.all([
-        ordersApi.getAll(),
-        productsApi.getAll(),
-      ]);
-
-      // Calculate inventory from orders
-      // For now, we'll simulate inventory based on orders
-      // In a real system, you'd have a separate inventory table
-      const inventoryMap = new Map<string, InventoryItem>();
-
-      // Initialize with products
-      products.forEach(product => {
-        const key = `${product.id}-Cantera Principal`;
-        inventoryMap.set(key, {
-          productId: product.id,
-          productName: product.name,
-          location: 'Cantera Principal',
-          quantity: 0,
-          reserved: 0,
-          available: 0,
-        });
-      });
-
-      // Calculate reserved quantities from pending/confirmed orders
-      orders.forEach(order => {
-        if (order.status === 'pending' || order.status === 'confirmed' || order.status === 'ready') {
-          order.products.forEach(item => {
-            const key = `${item.productId}-Cantera Principal`;
-            const invItem = inventoryMap.get(key);
-            if (invItem) {
-              invItem.reserved += item.quantity;
-            }
-          });
-        }
-      });
-
-      // Set total quantities (simulated - in real system this comes from inventory table)
-      inventoryMap.forEach(item => {
-        // Simulate total quantity based on product type
-        item.quantity = 1000 + Math.random() * 500; // Random between 1000-1500 tons
-        item.available = item.quantity - item.reserved;
-      });
-
-      setInventory(Array.from(inventoryMap.values()));
+      // Fetch inventory from database (includes reserved calculation)
+      const data = await inventoryApi.getAll();
+      setInventory(data);
     } catch (err: any) {
       console.error('Error loading inventory:', err);
       setError(err.message || 'Failed to load inventory');
@@ -97,7 +49,7 @@ const InventoryPage: React.FC = () => {
 
   const totalByProduct = inventory.reduce((acc, item) => {
     if (!acc[item.productId]) {
-      acc[item.productId] = { total: 0, reserved: 0, available: 0, name: item.productName };
+      acc[item.productId] = { total: 0, reserved: 0, available: 0, name: item.productName || 'Unknown Product' };
     }
     acc[item.productId].total += item.quantity;
     acc[item.productId].reserved += item.reserved;
@@ -115,12 +67,10 @@ const InventoryPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {t('modules.inventory.title')}
-      </Typography>
+      <PageHeader title={t('modules.inventory.title')} />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -158,17 +108,25 @@ const InventoryPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {inventory.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{item.productName}</TableCell>
-                      <TableCell>
-                        <Chip label={item.location} size="small" />
+                  {inventory.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography color="textSecondary">No inventory data found</Typography>
                       </TableCell>
-                      <TableCell>{item.quantity} tons</TableCell>
-                      <TableCell>{item.reserved} tons</TableCell>
-                      <TableCell>{item.available} tons</TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    inventory.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.productName || 'Unknown Product'}</TableCell>
+                        <TableCell>
+                          <Chip label={item.location} size="small" />
+                        </TableCell>
+                        <TableCell>{item.quantity.toFixed(2)} tons</TableCell>
+                        <TableCell>{item.reserved.toFixed(2)} tons</TableCell>
+                        <TableCell>{item.available.toFixed(2)} tons</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
