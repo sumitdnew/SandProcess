@@ -89,6 +89,23 @@
       "invoice": "Factura"
     }
   },
+  "forms": {
+    "orderForm": {
+      "uploadCustomerPO": "Subir Orden de Compra del Cliente (opcional)",
+      "selectFile": "Seleccionar archivo",
+      "pricingAutoApplied": "Los precios y términos de pago se aplicarán desde el MSA",
+      "standalonePO": "Orden de Compra Independiente (PO)",
+      "pricingManualEntry": "Ingrese los precios manualmente para este pedido",
+      "deliveryLocation": "Ubicación de Entrega",
+      "deliveryLocationPlaceholder": "ej: Locación Pozo A-12, Vaca Muerta",
+      "deliveryAddress": "Dirección de Entrega",
+      "products": "Productos",
+      "addProduct": "Agregar Producto",
+      "product": "Producto",
+      "quantity": "Cantidad (toneladas)",
+      "unitPrice": "Precio Unitario (USD/ton)"
+    }
+  },
   "roles": {
     "admin": "Administrador",
     "operations_manager": "Gerente de Operaciones",
@@ -424,7 +441,9 @@
       "quantity": "Cantidad (toneladas)",
       "unitPrice": "Precio Unitario",
       "total": "Total",
-      "remove": "Eliminar"
+      "remove": "Eliminar",
+      "uploadCustomerPO": "Subir Orden de Compra del Cliente (opcional)",
+      "selectFile": "Seleccionar archivo"
     }
   }
 }

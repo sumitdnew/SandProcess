@@ -89,6 +89,8 @@ export interface Order {
   msaId?: string;
   msaNumber?: string;
   paymentTerms?: string;
+  /** Optional URL to an uploaded customer Purchase Order document */
+  poDocumentUrl?: string;
   products: Array<{
     productId: string;
     productName: string;

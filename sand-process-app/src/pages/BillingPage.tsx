@@ -104,27 +104,6 @@ const BillingPage: React.FC = () => {
       return;
     }
 
-    // RN-005: Invoice only with complete proof (signature + certificate + GPS)
-    // Check if delivery has signature
-    const { data: deliveryData } = await supabase
-      .from('deliveries')
-      .select('id, status, actual_arrival')
-      .eq('order_id', selectedOrderForInvoice.id)
-      .eq('status', 'delivered')
-      .single();
-
-    if (!deliveryData) {
-      alert('Cannot generate invoice: Order must be delivered first with signature captured.');
-      return;
-    }
-
-    // Check if order has certificate
-    const hasCert = await ordersApi.hasCertificate(selectedOrderForInvoice.id);
-    if (!hasCert) {
-      alert('Cannot generate invoice: Order must have a QC certificate. This is required for invoicing.');
-      return;
-    }
-
     try {
       // Generate invoice number
       const year = new Date().getFullYear();

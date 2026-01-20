@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Dialog,
@@ -21,6 +21,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { customersApi, productsApi, msasApi, ordersApi } from '../../services/api';
 import { Customer, Product, MSA } from '../../types';
+import { supabase } from '../../config/supabase';
 
 interface OrderProduct {
   productId: string;
@@ -51,6 +52,8 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
   const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([
     { productId: '', quantity: 0, unitPrice: 0 },
   ]);
+  const [poFile, setPoFile] = useState<File | null>(null);
+  const [poUploading, setPoUploading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -143,6 +146,43 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
     );
   };
 
+  const handlePoFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setPoFile(file);
+  };
+
+  const uploadPoIfNeeded = async (): Promise<string | undefined> => {
+    if (!poFile) return undefined;
+
+    setPoUploading(true);
+    try {
+      const bucket = 'purchase-orders';
+      const fileExt = poFile.name.split('.').pop() || 'pdf';
+      const fileName = `po_${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, poFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Error uploading PO file:', error);
+        alert('Failed to upload Purchase Order file. Please try again.');
+        return undefined;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+
+      return publicData.publicUrl;
+    } finally {
+      setPoUploading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!customerId || !deliveryDate || !deliveryLocation || !deliveryAddress) {
       alert('Please fill in all required fields');
@@ -160,6 +200,8 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
 
     setLoading(true);
     try {
+      const poDocumentUrl = await uploadPoIfNeeded();
+
       await ordersApi.create({
         customerId,
         msaId: msaId || undefined,
@@ -168,6 +210,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
         deliveryAddress,
         products: validProducts,
         notes: notes || undefined,
+        poDocumentUrl,
       });
       
       onSuccess();
@@ -188,6 +231,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
     setDeliveryAddress('');
     setNotes('');
     setOrderProducts([{ productId: '', quantity: 0, unitPrice: 0 }]);
+    setPoFile(null);
     onClose();
   };
 
@@ -389,6 +433,32 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
                 multiline
                 rows={3}
               />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t('forms.orderForm.uploadCustomerPO') || 'Upload Customer Purchase Order (optional)'}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  disabled={poUploading || loading}
+                >
+                  {poFile ? poFile.name : (t('forms.orderForm.selectFile') || 'Select file')}
+                  <input
+                    type="file"
+                    hidden
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    onChange={handlePoFileChange}
+                  />
+                </Button>
+                {poUploading && (
+                  <Typography variant="caption" color="textSecondary" sx={{ ml: 2 }}>
+                    {t('common.loading')}
+                  </Typography>
+                )}
+              </Box>
             </Grid>
 
             <Grid item xs={12}>

@@ -89,6 +89,23 @@
       "invoice": "Invoice"
     }
   },
+  "forms": {
+    "orderForm": {
+      "uploadCustomerPO": "Upload Customer Purchase Order (optional)",
+      "selectFile": "Select file",
+      "pricingAutoApplied": "Pricing and payment terms will be applied from the MSA",
+      "standalonePO": "Standalone Purchase Order (PO)",
+      "pricingManualEntry": "Enter pricing manually for this order",
+      "deliveryLocation": "Delivery Location",
+      "deliveryLocationPlaceholder": "e.g. Well Pad A-12, Vaca Muerta",
+      "deliveryAddress": "Delivery Address",
+      "products": "Products",
+      "addProduct": "Add Product",
+      "product": "Product",
+      "quantity": "Quantity (tons)",
+      "unitPrice": "Unit Price (USD/ton)"
+    }
+  },
   "roles": {
     "admin": "Administrator",
     "operations_manager": "Operations Manager",
@@ -424,7 +441,9 @@
       "quantity": "Quantity (tons)",
       "unitPrice": "Unit Price",
       "total": "Total",
-      "remove": "Remove"
+      "remove": "Remove",
+      "uploadCustomerPO": "Upload Customer Purchase Order (optional)",
+      "selectFile": "Select file"
     }
   }
 }

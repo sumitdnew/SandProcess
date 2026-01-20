@@ -128,6 +128,7 @@ const LogisticsPage: React.FC = () => {
     photo: '',
   });
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hasSignatureStrokesRef = useRef(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
@@ -285,6 +286,7 @@ const LogisticsPage: React.FC = () => {
   // Signature canvas handlers
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasRef.current) return;
+    hasSignatureStrokesRef.current = false;
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
@@ -301,6 +303,7 @@ const LogisticsPage: React.FC = () => {
     const rect = canvas.getBoundingClientRect();
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      hasSignatureStrokesRef.current = true;
       ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
       ctx.stroke();
     }
@@ -309,6 +312,10 @@ const LogisticsPage: React.FC = () => {
   const stopDrawing = () => {
     if (!canvasRef.current) return;
     setIsDrawing(false);
+    // If no strokes were drawn, don't capture a signature image
+    if (!hasSignatureStrokesRef.current) {
+      return;
+    }
     const canvas = canvasRef.current;
     const signatureImage = canvas.toDataURL('image/png');
     setSignatureData(prev => ({ ...prev, signatureImage }));

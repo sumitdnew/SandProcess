@@ -241,9 +241,11 @@ const OrdersPage: React.FC = () => {
       in_production: 'qc',
       qc: 'ready',
       ready: null, // Next step is dispatch (handled separately)
-      dispatched: 'delivered',
-      delivered: 'completed',
-      completed: 'invoiced',
+      // After dispatch, further transitions (delivered/completed/invoiced)
+      // are handled from Logistics/Billing flows, not from Orders page
+      dispatched: null,
+      delivered: null,
+      completed: null,
       invoiced: null,
     };
     return statusFlow[currentStatus] || null;
@@ -546,6 +548,19 @@ const OrdersPage: React.FC = () => {
               <Grid item xs={12}>
                 <Typography><strong>{t('modules.orders.totalAmount')}:</strong> ${selectedOrder.totalAmount.toLocaleString()}</Typography>
               </Grid>
+              {selectedOrder.poDocumentUrl && (
+                <Grid item xs={12}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    href={selectedOrder.poDocumentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t('modules.orders.viewUploadedPO') || 'View Uploaded Customer PO'}
+                  </Button>
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <StatusChip status={selectedOrder.status} />
               </Grid>

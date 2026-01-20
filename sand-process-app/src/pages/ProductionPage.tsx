@@ -26,6 +26,8 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
+  TextField,
+  MenuItem,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -34,8 +36,9 @@ import {
   Stop as StopIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { ordersApi } from '../services/api';
-import { Order, OrderStatus } from '../types';
+import { ordersApi, productsApi } from '../services/api';
+import { Order, OrderStatus, Product } from '../types';
+import { supabase } from '../config/supabase';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
 
@@ -59,6 +62,12 @@ const ProductionPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [openOrderDialog, setOpenOrderDialog] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [openInternalDialog, setOpenInternalDialog] = useState(false);
+  const [internalProductId, setInternalProductId] = useState('');
+  const [internalQuantity, setInternalQuantity] = useState<number>(0);
+  const [internalLocation, setInternalLocation] = useState<string>('Cantera Principal');
+  const [internalLoading, setInternalLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -68,8 +77,12 @@ const ProductionPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const orders = await ordersApi.getAll();
+      const [orders, productsData] = await Promise.all([
+        ordersApi.getAll(),
+        productsApi.getAll(),
+      ]);
       setAllOrders(orders);
+      setProducts(productsData);
       
       // Filter orders for production view
       const production = orders.filter(o => 
@@ -84,6 +97,60 @@ const ProductionPage: React.FC = () => {
       setError(err.message || 'Failed to load production data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInternalProductionSubmit = async () => {
+    if (!internalProductId || internalQuantity <= 0 || !internalLocation) {
+      alert('Please select a product, location, and enter a positive quantity.');
+      return;
+    }
+
+    try {
+      setInternalLoading(true);
+
+      // Find existing inventory row for this product/location
+      const { data: existingRows, error: fetchError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('product_id', internalProductId)
+        .eq('location', internalLocation);
+
+      if (fetchError) throw fetchError;
+
+      if (existingRows && existingRows.length > 0) {
+        const row = existingRows[0];
+        const currentQty = parseFloat(row.quantity) || 0;
+        const newQty = currentQty + internalQuantity;
+
+        const { error: updateError } = await supabase
+          .from('inventory')
+          .update({ quantity: newQty, updated_at: new Date().toISOString() })
+          .eq('id', row.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('inventory')
+          .insert({
+            product_id: internalProductId,
+            location: internalLocation,
+            quantity: internalQuantity,
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      setOpenInternalDialog(false);
+      setInternalProductId('');
+      setInternalQuantity(0);
+      setInternalLocation('Cantera Principal');
+      alert('Inventory updated with internal production batch.');
+    } catch (err: any) {
+      console.error('Error recording internal production:', err);
+      alert('Error recording internal production: ' + (err.message || 'Unknown error'));
+    } finally {
+      setInternalLoading(false);
     }
   };
 
@@ -159,7 +226,18 @@ const ProductionPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader title={t('modules.production.title')} />
+      <PageHeader
+        title={t('modules.production.title')}
+        action={
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setOpenInternalDialog(true)}
+          >
+            Produce to Inventory
+          </Button>
+        }
+      />
 
       {error && (
         <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -564,6 +642,71 @@ const ProductionPage: React.FC = () => {
               Complete Production → Send to QC
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Internal Production Dialog */}
+      <Dialog
+        className="animate-fade-in"
+        open={openInternalDialog}
+        onClose={() => setOpenInternalDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Produce to Inventory / Warehouse</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Product"
+                value={internalProductId}
+                onChange={(e) => setInternalProductId(e.target.value)}
+                required
+              >
+                {products.map((product) => (
+                  <MenuItem key={product.id} value={product.id}>
+                    {product.name} ({product.meshSize})
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                type="number"
+                label="Quantity (tons)"
+                value={internalQuantity || ''}
+                onChange={(e) => setInternalQuantity(parseFloat(e.target.value) || 0)}
+                inputProps={{ min: 0, step: 0.1 }}
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Destination Location"
+                value={internalLocation}
+                onChange={(e) => setInternalLocation(e.target.value)}
+                helperText="e.g., Cantera Principal, Warehouse A, Buffer Zone"
+                required
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenInternalDialog(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleInternalProductionSubmit}
+            disabled={internalLoading}
+          >
+            {internalLoading ? t('common.loading') : 'Save to Inventory'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

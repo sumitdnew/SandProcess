@@ -220,6 +220,7 @@ export const ordersApi = {
     deliveryAddress: string;
     products: Array<{ productId: string; quantity: number; unitPrice: number }>;
     notes?: string;
+    poDocumentUrl?: string;
   }): Promise<Order> => {
     // Generate order number
     const year = new Date().getFullYear();
@@ -249,6 +250,7 @@ export const ordersApi = {
         status: 'pending',
         total_amount: totalAmount,
         notes: orderData.notes || null,
+        po_document_url: orderData.poDocumentUrl || null,
       })
       .select()
       .single();
@@ -367,6 +369,7 @@ function transformOrder(row: any): Order {
     totalAmount: parseFloat(row.total_amount) || 0,
     createdAt: row.created_at,
     notes: row.notes,
+    poDocumentUrl: row.po_document_url || undefined,
   };
 }
 
