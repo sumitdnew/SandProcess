@@ -23,7 +23,7 @@ import {
   Alert,
 } from '@mui/material';
 import { trucksApi, driversApi } from '../services/api';
-import { Truck, Driver, TruckStatus } from '../types';
+import { Truck, Driver } from '../types';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
 

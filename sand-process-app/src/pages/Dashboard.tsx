@@ -10,19 +10,11 @@ import {
   Paper,
   Chip,
   Button,
-  IconButton,
   Divider,
   LinearProgress,
   Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Alert,
   CircularProgress,
-  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -31,12 +23,10 @@ import {
   LocalShipping as TruckIcon,
   Science as QCIcon,
   Receipt as InvoiceIcon,
-  Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
   ArrowForward as ArrowForwardIcon,
   AttachMoney as MoneyIcon,
-  Inventory as InventoryIcon,
   Speed as SpeedIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
@@ -117,21 +107,12 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [tests, setTests] = useState<QCTest[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  // We compute invoice-based metrics from invoicesData directly; no need to store invoices separately
+  const [, setInvoices] = useState<Invoice[]>([]);
   const [revenueData, setRevenueData] = useState<ChartData[]>([]);
   const [orderStatusData, setOrderStatusData] = useState<ChartData[]>([]);
   const [productionData, setProductionData] = useState<ChartData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-
-  useEffect(() => {
-    if (currentRole === 'customer_user') {
-      // Customers shouldn't see the global operations dashboard – send them to their portal
-      navigate('/customer-portal', { replace: true });
-      return;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadData();
-  }, [currentRole, navigate]);
 
   const loadData = async () => {
     try {
@@ -158,6 +139,17 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (currentRole === 'customer_user') {
+      // Customers shouldn't see the global operations dashboard – send them to their portal
+      navigate('/customer-portal', { replace: true });
+      return;
+    }
+    // We intentionally don't include loadData in deps to avoid unnecessary re-runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadData();
+  }, [currentRole, navigate]);
 
   const calculateMetrics = (
     ordersData: Order[],

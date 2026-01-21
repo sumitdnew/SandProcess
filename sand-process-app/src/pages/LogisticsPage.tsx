@@ -118,11 +118,6 @@ const LogisticsPage: React.FC = () => {
   const hasSignatureStrokesRef = useRef(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -146,6 +141,12 @@ const LogisticsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // We only want to run this once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadData();
+  }, []);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -207,7 +208,7 @@ const LogisticsPage: React.FC = () => {
       const eta = new Date();
       eta.setHours(eta.getHours() + 2);
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('deliveries')
         .insert({
           order_id: selectedOrder.id,

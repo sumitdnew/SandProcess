@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import { invoicesApi, ordersApi } from '../services/api';
 import { supabase } from '../config/supabase';
-import { Invoice, PaymentStatus, Order } from '../types';
+import { Invoice, Order } from '../types';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
 
@@ -110,7 +110,7 @@ const BillingPage: React.FC = () => {
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
       // Create invoice
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('invoices')
         .insert({
           invoice_number: invoiceNumber,

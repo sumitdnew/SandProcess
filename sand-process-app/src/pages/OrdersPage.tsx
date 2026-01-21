@@ -172,7 +172,7 @@ const OrdersPage: React.FC = () => {
         .single();
 
       // Create delivery record
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('deliveries')
         .insert({
           order_id: dispatchOrder.id,
