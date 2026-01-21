@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -118,7 +118,7 @@ const LogisticsPage: React.FC = () => {
   const hasSignatureStrokesRef = useRef(false);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -131,22 +131,19 @@ const LogisticsPage: React.FC = () => {
         o.status === 'ready' || o.status === 'confirmed'
       );
       setOrders(readyOrders);
-      if (deliveriesData.length > 0 && !selectedDelivery) {
-        setSelectedDelivery(deliveriesData[0]);
-      }
+      // Only set initial delivery if none is selected (one-time initialization)
+      setSelectedDelivery(prev => prev || (deliveriesData.length > 0 ? deliveriesData[0] : null));
     } catch (err: any) {
       console.error('Error loading logistics data:', err);
       setError(err.message || 'Failed to load logistics data');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // We only want to run this once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
-  }, []);
+  }, [loadData]);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

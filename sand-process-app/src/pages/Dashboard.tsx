@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
   const [productionData, setProductionData] = useState<ChartData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [ordersData, deliveriesData, testsData, invoicesData, productionCapacity] = await Promise.all([
@@ -138,7 +138,7 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (currentRole === 'customer_user') {
@@ -146,10 +146,8 @@ const Dashboard: React.FC = () => {
       navigate('/customer-portal', { replace: true });
       return;
     }
-    // We intentionally don't include loadData in deps to avoid unnecessary re-runs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
-  }, [currentRole, navigate]);
+  }, [currentRole, navigate, loadData]);
 
   const calculateMetrics = (
     ordersData: Order[],
