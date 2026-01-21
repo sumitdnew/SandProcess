@@ -247,7 +247,13 @@
       "deliveryNotSelected": "Delivery not selected",
       "quarry": "Quarry",
       "well": "Well",
-      "linkedToCertificate": "Linked to QC certificate"
+      "linkedToCertificate": "Linked to QC certificate",
+      "deliveryConfirmed": "Delivery Confirmed with Electronic Signature",
+      "signedBy": "Signed by:",
+      "title": "Title:",
+      "date": "Date:",
+      "location": "Location:",
+      "signature": "Signature:"
     },
     "quality": {
       "title": "Quality Control",

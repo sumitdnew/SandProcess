@@ -57,6 +57,7 @@ import {
 } from 'recharts';
 import { ordersApi, deliveriesApi, qcTestsApi, invoicesApi, settingsApi } from '../services/api';
 import { Order, Delivery, QCTest, Invoice } from '../types';
+import { useApp } from '../context/AppContext';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
 
@@ -97,6 +98,7 @@ interface ChartData {
 const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { currentRole } = useApp();
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalRevenue: 0,
@@ -122,8 +124,13 @@ const Dashboard: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   useEffect(() => {
+    if (currentRole === 'customer_user') {
+      // Customers shouldn't see the global operations dashboard – send them to their portal
+      navigate('/customer-portal', { replace: true });
+      return;
+    }
     loadData();
-  }, []);
+  }, [currentRole, navigate]);
 
   const loadData = async () => {
     try {
@@ -341,6 +348,11 @@ const Dashboard: React.FC = () => {
     if (seconds < 86400) return t('common.hoursAgo', { hours: Math.floor(seconds / 3600) });
     return t('common.daysAgo', { days: Math.floor(seconds / 86400) });
   };
+
+  // While redirecting customer users, avoid flashing the admin dashboard
+  if (currentRole === 'customer_user') {
+    return null;
+  }
 
   if (loading) {
     return (

@@ -196,11 +196,56 @@ export interface QCTest {
   status: QCStatus;
   testDate?: string;
   createdAt?: string;
+  /**
+   * Detailed QC results stored as JSONB in the database.
+   * Simple fields (meshSize, purity, roundness, moisture) are always present
+   * for new tests, while extended fields are optional.
+   */
   results?: {
     meshSize: { passed: boolean; value: string; required?: string };
     purity: { passed: boolean; value: number; minRequired?: number };
     roundness: { passed: boolean; value: number; minRequired?: number };
     moisture: { passed: boolean; value: number; maxRequired?: number };
+    /**
+     * Optional extended results for comprehensive certificate of analysis.
+     */
+    sieveAnalysis?: {
+      mesh20?: { retained: number; spec: string; passed: boolean };
+      mesh30?: { retained: number; spec: string; passed: boolean };
+      mesh40?: { retained: number; spec: string; passed: boolean };
+      mesh50?: { retained: number; spec: string; passed: boolean };
+      mesh70?: { retained: number; spec: string; passed: boolean };
+      mesh100?: { retained: number; spec: string; passed: boolean };
+      pan?: { retained: number; spec: string; passed: boolean };
+    };
+    bulkDensity?: {
+      value: number;
+      spec: string;
+      passed: boolean;
+    };
+    crushResistance?: {
+      pressurePsi: number;
+      finesPercent: number;
+      spec: string;
+      passed: boolean;
+    };
+    acidSolubility?: {
+      hclPercent: number;
+      hfPercent: number;
+      totalPercent: number;
+      spec: string;
+      passed: boolean;
+    };
+    turbidity?: {
+      ntu: number;
+      spec: string;
+      passed: boolean;
+    };
+    moistureDetailed?: {
+      percent: number;
+      spec: string;
+      passed: boolean;
+    };
   };
   certificateId?: string;
   technicianId?: string;

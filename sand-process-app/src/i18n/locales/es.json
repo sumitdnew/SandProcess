@@ -247,7 +247,13 @@
       "deliveryNotSelected": "Entrega no seleccionada",
       "quarry": "Cantera",
       "well": "Pozo",
-      "linkedToCertificate": "Vinculado al certificado de control de calidad"
+      "linkedToCertificate": "Vinculado al certificado de control de calidad",
+      "deliveryConfirmed": "Entrega Confirmada con Firma Electrónica",
+      "signedBy": "Firmado por:",
+      "title": "Título:",
+      "date": "Fecha:",
+      "location": "Ubicación:",
+      "signature": "Firma:"
     },
     "quality": {
       "title": "Control de Calidad",

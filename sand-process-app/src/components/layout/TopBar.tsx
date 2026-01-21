@@ -104,18 +104,7 @@ const TopBar: React.FC = () => {
             open={Boolean(anchorEl)}
             onClose={handleRoleMenuClose}
           >
-            {Object.values([
-              'admin',
-              'operations_manager',
-              'dispatcher',
-              'driver',
-              'production_manager',
-              'qc_technician',
-              'sales_rep',
-              'customer_service',
-              'accounting_manager',
-              'customer_user',
-            ] as UserRole[]).map((role) => (
+            {(['admin', 'driver', 'customer_user'] as UserRole[]).map((role) => (
               <MenuItem
                 key={role}
                 onClick={() => handleRoleChange(role)}

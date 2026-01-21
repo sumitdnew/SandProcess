@@ -47,13 +47,13 @@ const Navigation: React.FC = () => {
       path: '/orders',
       label: t('common.orders'),
       icon: <ShoppingCartIcon />,
-      roles: ['admin', 'operations_manager', 'sales_rep', 'customer_service', 'customer_user'],
+      roles: ['admin', 'operations_manager', 'sales_rep', 'customer_service'],
     },
     {
       path: '/logistics',
       label: t('common.logistics'),
       icon: <LocalShippingIcon />,
-      roles: ['admin', 'operations_manager', 'dispatcher', 'customer_service', 'customer_user'],
+      roles: ['admin', 'operations_manager', 'dispatcher', 'customer_service'],
     },
     {
       path: '/quality',

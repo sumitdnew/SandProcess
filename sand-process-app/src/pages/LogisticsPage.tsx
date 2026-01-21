@@ -57,6 +57,8 @@ import { supabase } from '../config/supabase';
 import { Delivery, Order, Truck, Driver } from '../types';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
+import { useApp } from '../context/AppContext';
+import generateTraceabilityPDF from '../utils/generateTraceabilityPDF';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -107,6 +109,7 @@ const MapBoundsSetter: React.FC<{ delivery: Delivery | null }> = ({ delivery }) 
 
 const LogisticsPage: React.FC = () => {
   const { t } = useTranslation();
+  const { currentRole } = useApp();
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -282,6 +285,7 @@ const LogisticsPage: React.FC = () => {
       alert('Error updating status: ' + err.message);
     }
   };
+
 
   // Signature canvas handlers
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -480,26 +484,12 @@ const LogisticsPage: React.FC = () => {
   };
 
   const handleDownloadTraceabilityReport = (delivery: Delivery) => {
-    const report = {
-      orderNumber: delivery.orderNumber,
-      deliveryDate: new Date(delivery.createdAt).toLocaleDateString(),
-      truck: delivery.truckLicensePlate,
-      driver: delivery.driverName,
-      customer: delivery.customerName,
-      checkpoints: delivery.checkpoints,
-      gpsTrack: delivery.gpsTrack,
-      signature: delivery.signature,
-      waitTime: delivery.waitTime,
-      eta: delivery.eta,
-      actualArrival: delivery.actualArrival,
-    };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Traceability-Report-${delivery.orderNumber}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      generateTraceabilityPDF(delivery);
+    } catch (err: any) {
+      console.error('Error generating traceability PDF:', err);
+      alert(err.message || 'Failed to generate traceability report');
+    }
   };
 
   const center = selectedDelivery
@@ -541,14 +531,16 @@ const LogisticsPage: React.FC = () => {
             >
               {t('common.refresh')}
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAssignDialog}
-              disabled={orders.length === 0}
-            >
-              {t('modules.logistics.assignTruck')}
-            </Button>
+            {currentRole !== 'driver' && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenAssignDialog}
+                disabled={orders.length === 0}
+              >
+                {t('modules.logistics.assignTruck')}
+              </Button>
+            )}
           </>
         }
       />
@@ -875,26 +867,26 @@ const LogisticsPage: React.FC = () => {
                   {selectedDelivery.signature && (
                     <Grid item xs={12}>
                       <Alert className="animate-slide-in-up" severity="success" icon={<CheckCircleIcon />}>
-                        <AlertTitle>Delivery Confirmed with Electronic Signature</AlertTitle>
+                        <AlertTitle>{t('modules.logistics.deliveryConfirmed')}</AlertTitle>
                         <Grid container spacing={2} sx={{ mt: 1 }}>
                           <Grid item xs={12} md={6}>
                             <Typography variant="body2">
-                              <strong>Signed by:</strong> {selectedDelivery.signature.signerName}
+                              <strong>{t('modules.logistics.signedBy')}</strong> {selectedDelivery.signature.signerName}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>Title:</strong> {selectedDelivery.signature.signerTitle}
+                              <strong>{t('modules.logistics.title')}</strong> {selectedDelivery.signature.signerTitle}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>Date:</strong> {new Date(selectedDelivery.signature.timestamp).toLocaleString()}
+                              <strong>{t('modules.logistics.date')}</strong> {new Date(selectedDelivery.signature.timestamp).toLocaleString()}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>Location:</strong> {selectedDelivery.signature.location?.lat?.toFixed(4)}, {selectedDelivery.signature.location?.lng?.toFixed(4)}
+                              <strong>{t('modules.logistics.location')}</strong> {selectedDelivery.signature.location?.lat?.toFixed(4)}, {selectedDelivery.signature.location?.lng?.toFixed(4)}
                             </Typography>
                           </Grid>
                           {selectedDelivery.signature.signatureImage && (
                             <Grid item xs={12} md={6}>
                               <Typography variant="body2" gutterBottom>
-                                <strong>Signature:</strong>
+                                <strong>{t('modules.logistics.signature')}</strong>
                               </Typography>
                               <Box sx={{ border: '1px solid #ddd', borderRadius: 1, p: 1, bgcolor: 'white' }}>
                                 <img 

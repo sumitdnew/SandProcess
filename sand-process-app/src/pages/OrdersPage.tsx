@@ -34,9 +34,9 @@ import {
   Download as DownloadIcon,
   Close as CloseIcon,
 } from '@mui/icons-material';
-import { ordersApi, trucksApi, driversApi } from '../services/api';
+import { ordersApi, trucksApi, driversApi, customersApi } from '../services/api';
 import { supabase } from '../config/supabase';
-import { Order, OrderStatus, Truck, Driver } from '../types';
+import { Order, OrderStatus, Truck, Driver, Customer } from '../types';
 import CreateOrderForm from '../components/orders/CreateOrderForm';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
@@ -68,10 +68,22 @@ const OrdersPage: React.FC = () => {
   const [orderCertificates, setOrderCertificates] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
 
   useEffect(() => {
     loadOrders();
+    loadCustomers();
   }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const data = await customersApi.getAll();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Error loading customers:', err);
+    }
+  };
 
   const loadOrders = async () => {
     try {
@@ -359,6 +371,21 @@ const OrdersPage: React.FC = () => {
           <MenuItem value="delivered">{t('orderStatus.delivered')}</MenuItem>
           <MenuItem value="completed">{t('orderStatus.completed')}</MenuItem>
         </TextField>
+        <TextField
+          select
+          label="Filter by Customer"
+          value={customerFilter}
+          onChange={(e) => setCustomerFilter(e.target.value)}
+          size="small"
+          sx={{ minWidth: 200 }}
+        >
+          <MenuItem value="all">All Customers</MenuItem>
+          {customers.map((customer) => (
+            <MenuItem key={customer.id} value={customer.id}>
+              {customer.name}
+            </MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       <TableContainer component={Paper}>
@@ -394,7 +421,8 @@ const OrdersPage: React.FC = () => {
                     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     order.customerName.toLowerCase().includes(searchTerm.toLowerCase());
                   const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-                  return matchesSearch && matchesStatus;
+                  const matchesCustomer = customerFilter === 'all' || order.customerId === customerFilter;
+                  return matchesSearch && matchesStatus && matchesCustomer;
                 })
                 .map((order) => (
                 <TableRow key={order.id}>
