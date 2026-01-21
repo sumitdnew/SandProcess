@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
   Button,
   Dialog,
   DialogTitle,
@@ -43,16 +42,6 @@ const BillingPage: React.FC = () => {
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
-
-  const getPaymentStatusColor = (status: PaymentStatus) => {
-    const colors: Record<PaymentStatus, string> = {
-      pending: 'warning',
-      paid: 'success',
-      overdue: 'error',
-      partial: 'info',
-    };
-    return colors[status] || 'default';
-  };
 
   useEffect(() => {
     loadData();

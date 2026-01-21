@@ -38,6 +38,7 @@ const FleetPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
@@ -57,19 +58,6 @@ const FleetPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStatusColor = (status: TruckStatus) => {
-    const colors: Record<TruckStatus, string> = {
-      available: 'success',
-      assigned: 'info',
-      in_transit: 'warning',
-      loading: 'warning',
-      delivering: 'warning',
-      returning: 'info',
-      maintenance: 'error',
-    };
-    return colors[status] || 'default';
   };
 
   const handleViewTruck = (truck: Truck) => {

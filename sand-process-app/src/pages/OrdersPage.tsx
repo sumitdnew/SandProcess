@@ -25,7 +25,7 @@ import {
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { 
+import {
   Add as AddIcon, 
   LocalShipping as DispatchIcon, 
   ArrowForward as NextStepIcon, 
@@ -41,15 +41,6 @@ import CreateOrderForm from '../components/orders/CreateOrderForm';
 import StatusChip from '../theme/StatusChip';
 import PageHeader from '../theme/PageHeader';
 import generatePurchaseOrderPDF from '../utils/generatePurchaseOrderPDF';
-
-const COMPANY_INFO = {
-  name: 'Sand Process Management Co.',
-  address: 'Vaca Muerta Industrial Park, Neuquén, Argentina',
-  phone: '+54 299 XXX-XXXX',
-  email: 'orders@sandprocess.com.ar',
-  taxId: 'CUIT: 30-XXXXXXXX-X',
-  website: 'www.sandprocess.com.ar',
-};
 
 const OrdersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -116,21 +107,6 @@ const OrdersPage: React.FC = () => {
 
   const handleCreateSuccess = () => {
     loadOrders();
-  };
-
-  const getStatusColor = (status: OrderStatus) => {
-    const colors: Record<OrderStatus, string> = {
-      pending: 'default',
-      confirmed: 'info',
-      in_production: 'warning',
-      qc: 'warning',
-      ready: 'success',
-      dispatched: 'info',
-      delivered: 'success',
-      completed: 'success',
-      invoiced: 'success',
-    };
-    return colors[status] || 'default';
   };
 
   const handleViewOrder = (order: Order) => {

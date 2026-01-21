@@ -7,7 +7,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  Avatar,
   Menu,
   IconButton,
 } from '@mui/material';
@@ -19,7 +18,7 @@ import AccountCircle from '@mui/icons-material/AccountCircle';
 
 const TopBar: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { currentUser, currentRole, setCurrentRole, users } = useApp();
+  const { currentRole, setCurrentRole } = useApp();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const handleLanguageChange = (event: any) => {

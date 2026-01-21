@@ -8,13 +8,6 @@ import {
   Grid,
   Card,
   CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Button,
   CircularProgress,
   Alert,
@@ -29,10 +22,10 @@ import {
   Step,
   StepLabel,
   IconButton,
-  Tooltip,
   Badge,
   Divider,
   AlertTitle,
+  Chip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,7 +39,6 @@ import {
   PhotoCamera as PhotoIcon,
   Download as DownloadIcon,
   Close as CloseIcon,
-  Warning as WarningIcon,
   Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
@@ -66,14 +58,6 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-// Custom truck icon for map
-const truckIcon = L.divIcon({
-  html: '<div style="font-size: 24px;">🚚</div>',
-  className: 'custom-truck-icon',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
 });
 
 const quarryIcon = L.divIcon({
@@ -135,6 +119,7 @@ const LogisticsPage: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
@@ -349,11 +334,6 @@ const LogisticsPage: React.FC = () => {
     if (!selectedDelivery) return;
 
     try {
-      const gpsLocation = {
-        lat: selectedDelivery.route.well.lat || -38.6,
-        lng: selectedDelivery.route.well.lng || -69.1,
-      };
-
       let waitTime = 0;
       if (selectedDelivery.actualArrival) {
         const arrival = new Date(selectedDelivery.actualArrival);

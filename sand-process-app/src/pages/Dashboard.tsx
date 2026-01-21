@@ -129,6 +129,7 @@ const Dashboard: React.FC = () => {
       navigate('/customer-portal', { replace: true });
       return;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, [currentRole, navigate]);
 

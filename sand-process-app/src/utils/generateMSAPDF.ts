@@ -36,18 +36,6 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
     return false;
   };
 
-  // Helper to add text with word wrap
-  const addText = (text: string, fontSize: number = 10, style: 'normal' | 'bold' = 'normal', maxWidth?: number) => {
-    doc.setFontSize(fontSize);
-    doc.setFont('helvetica', style);
-    const lines = doc.splitTextToSize(text, maxWidth || pageWidth - 2 * margin);
-    lines.forEach((line: string) => {
-      checkPageBreak();
-      doc.text(line, margin, yPosition);
-      yPosition += fontSize * 0.5;
-    });
-  };
-
   const addSection = (title: string, content: string) => {
     checkPageBreak(30);
     yPosition += 5;

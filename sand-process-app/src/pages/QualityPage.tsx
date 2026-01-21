@@ -22,7 +22,6 @@ import {
   Alert,
   TextField,
   MenuItem,
-  LinearProgress,
   Stepper,
   Step,
   StepLabel,
@@ -31,8 +30,6 @@ import {
   Tooltip,
   Badge,
   AlertTitle,
-  FormControlLabel,
-  Checkbox,
   CardContent,
   CardActions,
 } from '@mui/material';
@@ -114,6 +111,7 @@ const QualityPage: React.FC = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
@@ -350,33 +348,6 @@ const QualityPage: React.FC = () => {
         },
       }));
     }
-  };
-
-  const handleResultChange = (
-    field: keyof TestResults,
-    value: number | string | boolean,
-    isValueField: boolean = true
-  ) => {
-    setTestResults(prev => {
-      const updated = { ...prev };
-      
-      if (isValueField) {
-        updated[field].value = value as any;
-        
-        if (field === 'meshSize') {
-          updated[field].passed = value === updated[field].required;
-        } else if (field === 'purity' || field === 'roundness') {
-          updated[field].passed = (value as number) >= updated[field].minRequired;
-        } else if (field === 'moisture') {
-          updated[field].passed = (value as number) <= updated[field].maxRequired;
-        }
-      } else {
-        // When isValueField is false, value is always a boolean
-        updated[field].passed = typeof value === 'boolean' ? value : false;
-      }
-      
-      return updated;
-    });
   };
 
   const allTestsPassed = () => {

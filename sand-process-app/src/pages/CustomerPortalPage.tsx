@@ -5,8 +5,6 @@ import {
   Typography,
   Paper,
   Grid,
-  Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -148,10 +146,6 @@ const CustomerPortalPage: React.FC = () => {
     }
   };
 
-  const center = selectedDelivery
-    ? [selectedDelivery.route.well.lat, selectedDelivery.route.well.lng]
-    : [-38.5, -69.0];
-
   const handleSubmitOrder = async () => {
     if (!selectedCustomerId || !orderForm.productId || !orderForm.location || !orderForm.date) {
       alert('Please fill in all order fields');
@@ -159,7 +153,6 @@ const CustomerPortalPage: React.FC = () => {
     }
 
     try {
-      const product = products.find(p => p.id === orderForm.productId);
       const unitPrice = 100; // Simple prototype price per ton
 
       // Optional: upload customer PO to Supabase Storage

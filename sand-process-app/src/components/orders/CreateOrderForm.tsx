@@ -83,7 +83,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
         setOrderProducts(updated);
       }
     }
-  }, [msaId, msas]);
+  }, [msaId, msas, orderProducts]);
 
   const loadData = async () => {
     try {

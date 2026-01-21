@@ -33,7 +33,6 @@ import {
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   PlayArrow as PlayArrowIcon,
-  Stop as StopIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { ordersApi, productsApi } from '../services/api';
@@ -70,6 +69,7 @@ const ProductionPage: React.FC = () => {
   const [internalLoading, setInternalLoading] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
