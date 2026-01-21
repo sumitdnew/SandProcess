@@ -114,42 +114,7 @@ const Dashboard: React.FC = () => {
   const [productionData, setProductionData] = useState<ChartData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [ordersData, deliveriesData, testsData, invoicesData, productionCapacity] = await Promise.all([
-        ordersApi.getAll(),
-        deliveriesApi.getAll(),
-        qcTestsApi.getAll(),
-        invoicesApi.getAll(),
-        settingsApi.getValue<{value: number}>('production_capacity', {value: 75}).catch(() => ({value: 75})),
-      ]);
-
-      setOrders(ordersData);
-      setDeliveries(deliveriesData);
-      setTests(testsData);
-      setInvoices(invoicesData);
-
-      calculateMetrics(ordersData, deliveriesData, testsData, invoicesData, productionCapacity.value);
-      generateChartData(ordersData, deliveriesData, testsData);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentRole === 'customer_user') {
-      // Customers shouldn't see the global operations dashboard – send them to their portal
-      navigate('/customer-portal', { replace: true });
-      return;
-    }
-    loadData();
-  }, [currentRole, navigate, loadData]);
-
-  const calculateMetrics = (
+  const calculateMetrics = useCallback((
     ordersData: Order[],
     deliveriesData: Delivery[],
     testsData: QCTest[],
@@ -200,9 +165,9 @@ const Dashboard: React.FC = () => {
       avgDeliveryTime,
       productionCapacity,
     });
-  };
+  }, []);
 
-  const generateChartData = (
+  const generateChartData = useCallback((
     ordersData: Order[],
     deliveriesData: Delivery[],
     testsData: QCTest[]
@@ -250,7 +215,42 @@ const Dashboard: React.FC = () => {
       }))
       .slice(0, 5); // Top 5 products
     setProductionData(prodData);
-  };
+  }, [t]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [ordersData, deliveriesData, testsData, invoicesData, productionCapacity] = await Promise.all([
+        ordersApi.getAll(),
+        deliveriesApi.getAll(),
+        qcTestsApi.getAll(),
+        invoicesApi.getAll(),
+        settingsApi.getValue<{value: number}>('production_capacity', {value: 75}).catch(() => ({value: 75})),
+      ]);
+
+      setOrders(ordersData);
+      setDeliveries(deliveriesData);
+      setTests(testsData);
+      setInvoices(invoicesData);
+
+      calculateMetrics(ordersData, deliveriesData, testsData, invoicesData, productionCapacity.value);
+      generateChartData(ordersData, deliveriesData, testsData);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [calculateMetrics, generateChartData]);
+
+  useEffect(() => {
+    if (currentRole === 'customer_user') {
+      // Customers shouldn't see the global operations dashboard – send them to their portal
+      navigate('/customer-portal', { replace: true });
+      return;
+    }
+    loadData();
+  }, [currentRole, navigate, loadData]);
 
   const getRecentActivity = () => {
     const activities: Array<{
