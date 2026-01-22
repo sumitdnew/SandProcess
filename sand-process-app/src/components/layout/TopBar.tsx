@@ -11,6 +11,7 @@ import {
   IconButton,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
 import LanguageIcon from '@mui/icons-material/Language';
@@ -18,6 +19,7 @@ import AccountCircle from '@mui/icons-material/AccountCircle';
 
 const TopBar: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { currentRole, setCurrentRole } = useApp();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
@@ -37,6 +39,15 @@ const TopBar: React.FC = () => {
   const handleRoleChange = (role: UserRole) => {
     setCurrentRole(role);
     handleRoleMenuClose();
+    
+    // Redirect based on role
+    if (role === 'customer_user') {
+      navigate('/customer-portal', { replace: true });
+    } else if (role === 'driver') {
+      navigate('/logistics', { replace: true });
+    } else if (role === 'admin') {
+      navigate('/', { replace: true });
+    }
   };
 
   const getRoleLabel = (role: UserRole) => {
