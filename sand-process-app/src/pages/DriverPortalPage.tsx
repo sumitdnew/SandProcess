@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -9,7 +9,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
   TableRow,
   Button,
@@ -47,11 +46,7 @@ const DriverPortalPage: React.FC = () => {
   const [signatureImage, setSignatureImage] = useState('');
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -76,7 +71,11 @@ const DriverPortalPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const center = selectedDelivery
     ? [selectedDelivery.route.well.lat, selectedDelivery.route.well.lng]
