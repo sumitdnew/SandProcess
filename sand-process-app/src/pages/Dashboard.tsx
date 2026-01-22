@@ -249,6 +249,11 @@ const Dashboard: React.FC = () => {
       navigate('/customer-portal', { replace: true });
       return;
     }
+    if (currentRole === 'driver') {
+      // Drivers should go to logistics page
+      navigate('/logistics', { replace: true });
+      return;
+    }
     loadData();
   }, [currentRole, navigate, loadData]);
 

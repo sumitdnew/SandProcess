@@ -17,6 +17,7 @@ import InventoryPage from './pages/InventoryPage';
 import FleetPage from './pages/FleetPage';
 import ProductionPage from './pages/ProductionPage';
 import CustomerPortalPage from './pages/CustomerPortalPage';
+import DriverPortalPage from './pages/DriverPortalPage';
 import CustomersPage from './pages/CustomersPage';
 import MSAPage from './pages/MSAPage';
 
@@ -39,6 +40,7 @@ function App() {
                 <Route path="/fleet" element={<FleetPage />} />
                 <Route path="/production" element={<ProductionPage />} />
                 <Route path="/customer-portal" element={<CustomerPortalPage />} />
+                <Route path="/driver-portal" element={<DriverPortalPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/msas" element={<MSAPage />} />
               </Routes>
