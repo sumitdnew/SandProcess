@@ -250,7 +250,7 @@
       "linkedToCertificate": "Linked to QC certificate",
       "deliveryConfirmed": "Delivery Confirmed with Electronic Signature",
       "signedBy": "Signed by:",
-      "title": "Title:",
+      "signerTitleLabel": "Title:",
       "date": "Date:",
       "location": "Location:",
       "signature": "Signature:"

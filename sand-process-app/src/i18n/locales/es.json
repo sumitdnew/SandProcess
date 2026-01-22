@@ -250,7 +250,7 @@
       "linkedToCertificate": "Vinculado al certificado de control de calidad",
       "deliveryConfirmed": "Entrega Confirmada con Firma Electrónica",
       "signedBy": "Firmado por:",
-      "title": "Título:",
+      "signerTitleLabel": "Título:",
       "date": "Fecha:",
       "location": "Ubicación:",
       "signature": "Firma:"

@@ -852,7 +852,7 @@ const LogisticsPage: React.FC = () => {
                               <strong>{t('modules.logistics.signedBy')}</strong> {selectedDelivery.signature.signerName}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>{t('modules.logistics.title')}</strong> {selectedDelivery.signature.signerTitle}
+                              <strong>{t('modules.logistics.signerTitleLabel')}</strong> {selectedDelivery.signature.signerTitle}
                             </Typography>
                             <Typography variant="body2">
                               <strong>{t('modules.logistics.date')}</strong> {new Date(selectedDelivery.signature.timestamp).toLocaleString()}
