@@ -66,6 +66,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
     }
   }, [customerId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // When MSA is selected, auto-fill prices for all products
     if (msaId && orderProducts.length > 0) {
@@ -80,6 +81,7 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
         setOrderProducts(updated);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [msaId, msas]);
 
   const loadData = async () => {

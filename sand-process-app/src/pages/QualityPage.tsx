@@ -22,7 +22,6 @@ import {
   Alert,
   TextField,
   MenuItem,
-  LinearProgress,
   Stepper,
   Step,
   StepLabel,
@@ -184,7 +183,7 @@ const QualityPage: React.FC = () => {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('qc_tests')
         .insert({
           lot_number: testFormData.lotNumber.trim(),

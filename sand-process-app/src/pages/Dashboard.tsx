@@ -10,19 +10,11 @@ import {
   Paper,
   Chip,
   Button,
-  IconButton,
   Divider,
   LinearProgress,
   Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Alert,
   CircularProgress,
-  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -31,12 +23,10 @@ import {
   LocalShipping as TruckIcon,
   Science as QCIcon,
   Receipt as InvoiceIcon,
-  Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
   ArrowForward as ArrowForwardIcon,
   AttachMoney as MoneyIcon,
-  Inventory as InventoryIcon,
   Speed as SpeedIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
@@ -94,7 +84,7 @@ interface ChartData {
 }
 
 const Dashboard: React.FC = () => {
-  const { t } = useTranslation();
+  useTranslation();
   const navigate = useNavigate();
   const { currentRole } = useApp();
   const [loading, setLoading] = useState(true);
@@ -116,7 +106,7 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [tests, setTests] = useState<QCTest[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [, setInvoices] = useState<Invoice[]>([]);
   const [revenueData, setRevenueData] = useState<ChartData[]>([]);
   const [orderStatusData, setOrderStatusData] = useState<ChartData[]>([]);
   const [productionData, setProductionData] = useState<ChartData[]>([]);
@@ -124,6 +114,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

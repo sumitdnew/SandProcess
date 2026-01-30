@@ -8,12 +8,6 @@ import {
   Grid,
   Card,
   CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Chip,
   Button,
   CircularProgress,
@@ -35,7 +29,6 @@ import {
   AlertTitle,
 } from '@mui/material';
 import {
-  Add as AddIcon,
   LocalShipping as TruckIcon,
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
@@ -46,15 +39,14 @@ import {
   PhotoCamera as PhotoIcon,
   Download as DownloadIcon,
   Close as CloseIcon,
-  Warning as WarningIcon,
   Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { deliveriesApi, ordersApi, trucksApi, driversApi } from '../services/api';
+import { deliveriesApi, ordersApi } from '../services/api';
 import { supabase } from '../config/supabase';
-import { Delivery, Order, Truck, Driver } from '../types';
+import { Delivery, Order } from '../types';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -62,14 +54,6 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-// Custom truck icon for map
-const truckIcon = L.divIcon({
-  html: '<div style="font-size: 24px;">🚚</div>',
-  className: 'custom-truck-icon',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
 });
 
 const quarryIcon = L.divIcon({
@@ -107,16 +91,10 @@ const LogisticsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
-  const [openAssignDialog, setOpenAssignDialog] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [availableTrucks, setAvailableTrucks] = useState<Truck[]>([]);
-  const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
-  const [selectedTruckId, setSelectedTruckId] = useState('');
-  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [certByOrderId, setCertByOrderId] = useState<Record<string, boolean>>({});
   const [openDeliveryConfirmDialog, setOpenDeliveryConfirmDialog] = useState(false);
@@ -132,6 +110,7 @@ const LogisticsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -190,95 +169,6 @@ const LogisticsPage: React.FC = () => {
       delivered: <CheckCircleIcon fontSize="small" />,
     };
     return icons[status] || <PendingIcon fontSize="small" />;
-  };
-
-  const handleOpenAssignDialog = async () => {
-    try {
-      const [trucksData, driversData, ordersData] = await Promise.all([
-        trucksApi.getAll(),
-        driversApi.getAll(),
-        ordersApi.getAll(),
-      ]);
-      const available = trucksData.filter(t => t.status === 'available');
-      const availableDriversList = driversData.filter(d => d.available);
-      const readyOrders = ordersData.filter(o => 
-        o.status === 'ready' || o.status === 'confirmed'
-      );
-      setAvailableTrucks(available);
-      setAvailableDrivers(availableDriversList);
-      setOrders(readyOrders);
-      setOpenAssignDialog(true);
-    } catch (err: any) {
-      console.error('Error loading trucks/drivers:', err);
-      setError(err.message);
-    }
-  };
-
-  const handleCreateDelivery = async () => {
-    if (!selectedOrder || !selectedTruckId || !selectedDriverId) {
-      alert('Please select an order, truck, and driver');
-      return;
-    }
-
-    const hasCert = await ordersApi.hasCertificate(selectedOrder.id);
-    if (!hasCert) {
-      alert('Cannot dispatch: Order must have a QC certificate. Please complete and approve QC testing first.');
-      return;
-    }
-    
-    try {
-      const eta = new Date();
-      eta.setHours(eta.getHours() + 2);
-
-      const { data, error } = await supabase
-        .from('deliveries')
-        .insert({
-          order_id: selectedOrder.id,
-          truck_id: selectedTruckId,
-          driver_id: selectedDriverId,
-          status: 'assigned',
-          eta: eta.toISOString(),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const { data: certData } = await supabase
-        .from('qc_tests')
-        .select('id, certificate_id')
-        .eq('order_id', selectedOrder.id)
-        .eq('status', 'passed')
-        .not('certificate_id', 'is', null)
-        .single();
-
-      if (certData && certData.certificate_id) {
-        await supabase
-          .from('qc_tests')
-          .update({ truck_id: selectedTruckId })
-          .eq('id', certData.id);
-      }
-
-      await ordersApi.updateStatus(selectedOrder.id, 'dispatched');
-
-      await supabase
-        .from('trucks')
-        .update({ 
-          status: 'assigned',
-          assigned_order_id: selectedOrder.id,
-          driver_id: selectedDriverId
-        })
-        .eq('id', selectedTruckId);
-
-      setOpenAssignDialog(false);
-      setSelectedOrder(null);
-      setSelectedTruckId('');
-      setSelectedDriverId('');
-      loadData();
-    } catch (err: any) {
-      console.error('Error creating delivery:', err);
-      alert('Error creating delivery: ' + err.message);
-    }
   };
 
   const handleMarkInTransit = async (deliveryId: string) => {
@@ -409,11 +299,6 @@ const LogisticsPage: React.FC = () => {
     if (!selectedDelivery) return;
 
     try {
-      const gpsLocation = {
-        lat: selectedDelivery.route.well.lat || -38.6,
-        lng: selectedDelivery.route.well.lng || -69.1,
-      };
-
       let waitTime = 0;
       if (selectedDelivery.actualArrival) {
         const arrival = new Date(selectedDelivery.actualArrival);

@@ -37,7 +37,6 @@ import {
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   PlayArrow as PlayArrowIcon,
-  Stop as StopIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
 } from '@mui/icons-material';

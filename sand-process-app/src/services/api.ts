@@ -676,7 +676,6 @@ function applyRule(rule: Rule, options: RecommendationOption[]): void {
   }
 }
 
-const SAFETY_STOCK_ONSITE_TONS = 1000;
 const ONSITE_ETA_MIN = 45;
 const QUARRY_DISTANCE_KM = 140;
 const QUARRY_ETA_MIN = 210; // 3.5 h
@@ -927,7 +926,7 @@ export const dispatcherApi = {
   },
 
   assign: async (payload: AssignmentPayload): Promise<void> => {
-    const { orderId, sourceType, sourceId, truckId, reason, fromOrderId } = payload;
+    const { orderId, sourceType, sourceId, truckId, fromOrderId } = payload;
     const order = await ordersApi.getById(orderId);
     if (!order) throw new Error('Order not found');
 
@@ -1075,7 +1074,7 @@ export const dispatcherApi = {
     const inTransitTrucks = trucks.filter(
       t => t.id !== truckId && (t.status === 'in_transit' || t.status === 'assigned') && t.capacity >= orderTons
     );
-    const availableDrivers = (await driversApi.getAll()).filter(d => d.available);
+    const availableDrivers = drivers.filter(d => d.available);
     const options: RecommendationOption[] = [];
     let rank = 1;
 

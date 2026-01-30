@@ -140,7 +140,7 @@ const BillingPage: React.FC = () => {
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
       // Create invoice
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('invoices')
         .insert({
           invoice_number: invoiceNumber,
