@@ -24,11 +24,9 @@ import {
   TextField,
   MenuItem,
 } from '@mui/material';
-import { Add as AddIcon, Description as ContractIcon, Download as DownloadIcon } from '@mui/icons-material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { msasApi, customersApi, productsApi } from '../services/api';
 import { MSA, Customer, Product } from '../types';
-import PageHeader from '../theme/PageHeader';
-import generateMSAPDF from '../utils/generateMSAPDF';
 
 const MSAPage: React.FC = () => {
   const { t } = useTranslation();
@@ -40,7 +38,6 @@ const MSAPage: React.FC = () => {
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [newMSA, setNewMSA] = useState({
     customerId: '',
     startDate: new Date().toISOString().split('T')[0],
@@ -90,20 +87,6 @@ const MSAPage: React.FC = () => {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedMSA(null);
-  };
-
-  const handleGenerateMSA = async (msa: MSA) => {
-    if (!msa) return;
-
-    try {
-      setGeneratingPDF(true);
-      await generateMSAPDF(msa.id);
-    } catch (error: any) {
-      console.error('Error generating MSA PDF:', error);
-      alert(error.message || 'Failed to generate MSA PDF. Please try again.');
-    } finally {
-      setGeneratingPDF(false);
-    }
   };
 
   const handleCreateMSA = async () => {
@@ -165,21 +148,21 @@ const MSAPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.msa.title')}
-        action={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenCreateDialog(true)}
-          >
-            {t('modules.msa.createMSA')}
-          </Button>
-        }
-      />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          {t('modules.msa.title')}
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenCreateDialog(true)}
+        >
+          Create MSA
+        </Button>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -261,20 +244,9 @@ const MSAPage: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Button size="small" onClick={() => handleViewMSA(msa)}>
-                              View Details
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<DownloadIcon />}
-                              onClick={() => handleGenerateMSA(msa)}
-                              disabled={generatingPDF}
-                            >
-                              Download PDF
-                            </Button>
-                          </Box>
+                          <Button size="small" onClick={() => handleViewMSA(msa)}>
+                            View Details
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -286,7 +258,7 @@ const MSAPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {t('modules.msa.msaDetails')}: {selectedMSA?.customerName}
         </DialogTitle>
@@ -334,22 +306,12 @@ const MSAPage: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedMSA && (
-            <Button
-              startIcon={<ContractIcon />}
-              onClick={() => handleGenerateMSA(selectedMSA)}
-              disabled={generatingPDF}
-              variant="outlined"
-            >
-              {generatingPDF ? 'Generating...' : 'Generate Contract'}
-            </Button>
-          )}
-          <Button onClick={handleCloseDialog}>Close</Button>
+          <Button onClick={handleCloseDialog}>Close          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Create MSA Dialog */}
-      <Dialog className="animate-fade-in" open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>Create New MSA</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -9,19 +10,25 @@ import {
   FormControl,
   Menu,
   IconButton,
+  Badge,
+  ListItemText,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
+import { tasksApi } from '../../services/api';
+import type { TaskItem } from '../../types';
 import LanguageIcon from '@mui/icons-material/Language';
 import AccountCircle from '@mui/icons-material/AccountCircle';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 
 const TopBar: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { currentRole, setCurrentRole } = useApp();
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
   const handleLanguageChange = (event: any) => {
     i18n.changeLanguage(event.target.value);
@@ -39,22 +46,38 @@ const TopBar: React.FC = () => {
   const handleRoleChange = (role: UserRole) => {
     setCurrentRole(role);
     handleRoleMenuClose();
-    
-    // Redirect based on role
-    if (role === 'customer_user') {
-      navigate('/customer-portal', { replace: true });
-    } else if (role === 'driver') {
-      navigate('/logistics', { replace: true });
-    } else if (role === 'admin') {
-      navigate('/', { replace: true });
-    }
+    if (role === 'driver') navigate('/logistics', { replace: true });
+    else if (role === 'operations_manager') navigate('/approvals', { replace: true });
+    else if (role === 'qc_technician') navigate('/quality', { replace: true });
+    else if (role === 'inventory_manager') navigate('/inventory', { replace: true });
   };
 
   const getRoleLabel = (role: UserRole) => {
     return t(`roles.${role}`);
   };
 
-  React.useEffect(() => {
+  const taskTotal = tasks.reduce((s, x) => s + x.count, 0);
+
+  useEffect(() => {
+    if (!currentRole) {
+      setTasks([]);
+      return;
+    }
+    let cancelled = false;
+    tasksApi
+      .getForRole(currentRole)
+      .then((data) => {
+        if (!cancelled) setTasks(data);
+      })
+      .catch(() => {
+        if (!cancelled) setTasks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRole]);
+
+  useEffect(() => {
     const savedLanguage = localStorage.getItem('language');
     if (savedLanguage) {
       // Normalize language code (en-US -> en, es-ES -> es)
@@ -83,7 +106,7 @@ const TopBar: React.FC = () => {
           {/* Language Selector */}
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
-              value={i18n.language.split('-')[0]} // Normalize to base language code
+              value={i18n.language.split('-')[0]}
               onChange={handleLanguageChange}
               startAdornment={<LanguageIcon sx={{ mr: 1, fontSize: 20 }} />}
               sx={{ color: 'white', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' } }}
@@ -92,6 +115,56 @@ const TopBar: React.FC = () => {
               <MenuItem value="es">{t('common.spanish')}</MenuItem>
             </Select>
           </FormControl>
+
+          {/* Notifications */}
+          <IconButton
+            size="large"
+            aria-label="notifications"
+            aria-controls="notif-menu"
+            aria-haspopup="true"
+            onClick={(e) => setNotifAnchorEl(e.currentTarget)}
+            color="inherit"
+          >
+            <Badge badgeContent={taskTotal} color="error" showZero={false}>
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+          <Menu
+            id="notif-menu"
+            anchorEl={notifAnchorEl}
+            open={Boolean(notifAnchorEl)}
+            onClose={() => setNotifAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            {tasks.length === 0 ? (
+              <MenuItem disabled>
+                <ListItemText primary="No tasks" />
+              </MenuItem>
+            ) : (
+              <>
+                {tasks.map((task) => (
+                  <MenuItem
+                    key={task.id}
+                    onClick={() => {
+                      setNotifAnchorEl(null);
+                      navigate(task.link);
+                    }}
+                  >
+                    <ListItemText primary={task.title} secondary={`${task.count} ${task.count === 1 ? 'task' : 'tasks'}`} />
+                  </MenuItem>
+                ))}
+                <MenuItem
+                  onClick={() => {
+                    setNotifAnchorEl(null);
+                    navigate('/tasks');
+                  }}
+                >
+                  <ListItemText primary="View all tasks" primaryTypographyProps={{ fontWeight: 600 }} />
+                </MenuItem>
+              </>
+            )}
+          </Menu>
 
           {/* Role Selector */}
           <IconButton
@@ -114,7 +187,17 @@ const TopBar: React.FC = () => {
             open={Boolean(anchorEl)}
             onClose={handleRoleMenuClose}
           >
-            {(['admin', 'driver', 'customer_user'] as UserRole[]).map((role) => (
+            {Object.values([
+              'admin',
+              'operations_manager',
+              'jefatura',
+              'dispatcher',
+              'driver',
+              'qc_technician',
+              'accounting_manager',
+              'inventory_manager',
+              'customer_user',
+            ] as UserRole[]).map((role) => (
               <MenuItem
                 key={role}
                 onClick={() => handleRoleChange(role)}

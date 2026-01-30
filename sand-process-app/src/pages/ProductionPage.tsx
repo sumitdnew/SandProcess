@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -28,18 +29,21 @@ import {
   Tooltip,
   TextField,
   MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   PlayArrow as PlayArrowIcon,
+  Stop as StopIcon,
   Refresh as RefreshIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
-import { ordersApi, productsApi } from '../services/api';
-import { Order, OrderStatus, Product } from '../types';
+import { ordersApi, productsApi, qcTestsApi } from '../services/api';
 import { supabase } from '../config/supabase';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
+import { Order, OrderStatus, QCTest } from '../types';
 
 interface ProductionStage {
   id: string;
@@ -61,34 +65,36 @@ const ProductionPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [openOrderDialog, setOpenOrderDialog] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [openInternalDialog, setOpenInternalDialog] = useState(false);
-  const [internalProductId, setInternalProductId] = useState('');
-  const [internalQuantity, setInternalQuantity] = useState<number>(0);
-  const [internalLocation, setInternalLocation] = useState<string>('Cantera Principal');
-  const [internalLoading, setInternalLoading] = useState(false);
+  const [openProduceToInv, setOpenProduceToInv] = useState(false);
+  const [produceProductId, setProduceProductId] = useState('');
+  const [produceQuantity, setProduceQuantity] = useState('');
+  const [produceLocation, setProduceLocation] = useState('');
+  const [produceLot, setProduceLot] = useState('');
+  const [produceSubmitting, setProduceSubmitting] = useState(false);
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
+  const [produceSuccess, setProduceSuccess] = useState(false);
+  const [pendingLotTests, setPendingLotTests] = useState<QCTest[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (opts?: { silent?: boolean }) => {
     try {
-      setLoading(true);
-      setError(null);
-      const [orders, productsData] = await Promise.all([
+      if (!opts?.silent) {
+        setLoading(true);
+        setError(null);
+      }
+      const [orders, pendingLots] = await Promise.all([
         ordersApi.getAll(),
-        productsApi.getAll(),
+        qcTestsApi.getPendingLots().catch(() => [] as QCTest[]),
       ]);
       setAllOrders(orders);
-      setProducts(productsData);
-      
-      // Filter orders for production view
-      const production = orders.filter(o => 
-        o.status === 'confirmed' || 
-        o.status === 'in_production' || 
-        o.status === 'qc' || 
+      setPendingLotTests(pendingLots);
+      const production = orders.filter(o =>
+        o.status === 'confirmed' ||
+        o.status === 'in_production' ||
+        o.status === 'qc' ||
         o.status === 'ready'
       );
       setProductionOrders(production);
@@ -96,61 +102,7 @@ const ProductionPage: React.FC = () => {
       console.error('Error loading production data:', err);
       setError(err.message || 'Failed to load production data');
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInternalProductionSubmit = async () => {
-    if (!internalProductId || internalQuantity <= 0 || !internalLocation) {
-      alert('Please select a product, location, and enter a positive quantity.');
-      return;
-    }
-
-    try {
-      setInternalLoading(true);
-
-      // Find existing inventory row for this product/location
-      const { data: existingRows, error: fetchError } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('product_id', internalProductId)
-        .eq('location', internalLocation);
-
-      if (fetchError) throw fetchError;
-
-      if (existingRows && existingRows.length > 0) {
-        const row = existingRows[0];
-        const currentQty = parseFloat(row.quantity) || 0;
-        const newQty = currentQty + internalQuantity;
-
-        const { error: updateError } = await supabase
-          .from('inventory')
-          .update({ quantity: newQty, updated_at: new Date().toISOString() })
-          .eq('id', row.id);
-
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('inventory')
-          .insert({
-            product_id: internalProductId,
-            location: internalLocation,
-            quantity: internalQuantity,
-          });
-
-        if (insertError) throw insertError;
-      }
-
-      setOpenInternalDialog(false);
-      setInternalProductId('');
-      setInternalQuantity(0);
-      setInternalLocation('Cantera Principal');
-      alert('Inventory updated with internal production batch.');
-    } catch (err: any) {
-      console.error('Error recording internal production:', err);
-      alert('Error recording internal production: ' + (err.message || 'Unknown error'));
-    } finally {
-      setInternalLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
@@ -191,16 +143,6 @@ const ProductionPage: React.FC = () => {
     ];
   };
 
-  const handleStartProduction = async (orderId: string) => {
-    try {
-      await ordersApi.updateStatus(orderId, 'in_production');
-      loadData();
-    } catch (err: any) {
-      console.error('Error starting production:', err);
-      alert('Error starting production: ' + err.message);
-    }
-  };
-
   const handleCompleteStage = async (orderId: string, nextStatus: OrderStatus) => {
     try {
       await ordersApi.updateStatus(orderId, nextStatus);
@@ -216,6 +158,61 @@ const ProductionPage: React.FC = () => {
     setOpenOrderDialog(true);
   };
 
+  const handleOpenProduceToInv = async () => {
+    setProduceProductId('');
+    setProduceQuantity('');
+    setProduceLocation('');
+    setProduceLot('');
+    setOpenProduceToInv(true);
+    try {
+      const list = await productsApi.getAll();
+      setProducts(list.map((p) => ({ id: p.id, name: p.name })));
+    } catch {
+      setProducts([]);
+    }
+  };
+
+  const locationToSiteId: Record<string, string> = {
+    'Cantera Principal': 'quarry',
+    'Near-well warehouse': 'near_well',
+  };
+
+  const handleProduceToInvSubmit = async () => {
+    if (!produceProductId || !produceQuantity || !produceLocation || !produceLot) return;
+    const qty = parseFloat(produceQuantity);
+    if (isNaN(qty) || qty <= 0) return;
+    const siteId = locationToSiteId[produceLocation] ?? 'quarry';
+    setProduceSubmitting(true);
+    setError(null);
+    try {
+      const { error: qcError } = await supabase
+        .from('qc_tests')
+        .insert({
+          lot_number: produceLot.trim(),
+          product_id: produceProductId,
+          order_id: null,
+          status: 'pending',
+          quantity: qty,
+          site_id: siteId,
+        });
+
+      if (qcError) throw qcError;
+
+      setOpenProduceToInv(false);
+      setProduceProductId('');
+      setProduceQuantity('');
+      setProduceLocation('');
+      setProduceLot('');
+      setProduceSuccess(true);
+      await loadData({ silent: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to record production';
+      setError(msg);
+    } finally {
+      setProduceSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -226,31 +223,34 @@ const ProductionPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.production.title')}
-        action={
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setOpenInternalDialog(true)}
-          >
-            Produce to Inventory
-          </Button>
-        }
-      />
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+        <Typography variant="h4">{t('common.production')}</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenProduceToInv}
+        >
+          {t('modules.production.produceToInventory')}
+        </Button>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+      {produceSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setProduceSuccess(false)}>
+          {t('modules.production.produceSuccess')}
         </Alert>
       )}
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="textSecondary" gutterBottom>
-                Confirmed Orders
+                {t('modules.production.confirmedOrders')}
               </Typography>
               <Typography variant="h3" color="info.main">
                 {allOrders.filter(o => o.status === 'confirmed').length}
@@ -258,11 +258,11 @@ const ProductionPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="textSecondary" gutterBottom>
-                In Production
+                {t('modules.production.inProductionCount')}
               </Typography>
               <Typography variant="h3" color="warning.main">
                 {allOrders.filter(o => o.status === 'in_production').length}
@@ -270,11 +270,11 @@ const ProductionPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="textSecondary" gutterBottom>
-                QC Queue
+                {t('modules.production.qcQueueCount')}
               </Typography>
               <Typography variant="h3" color="error.main">
                 {allOrders.filter(o => o.status === 'qc').length}
@@ -282,11 +282,11 @@ const ProductionPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
               <Typography variant="h6" color="textSecondary" gutterBottom>
-                Ready for Dispatch
+                {t('modules.production.readyForDispatchCount')}
               </Typography>
               <Typography variant="h3" color="success.main">
                 {allOrders.filter(o => o.status === 'ready').length}
@@ -294,7 +294,58 @@ const ProductionPage: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" color="textSecondary" gutterBottom>
+                {t('modules.production.pendingQCLots')}
+              </Typography>
+              <Typography variant="h3" color="secondary.main">
+                {pendingLotTests.length}
+              </Typography>
+              <Typography variant="caption" color="textSecondary" display="block">
+                {t('modules.production.pendingQCLotsHint')}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+
+      {pendingLotTests.length > 0 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            {t('modules.production.produceToInventoryPending')}
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t('modules.production.lotNumber')}</TableCell>
+                  <TableCell>{t('modules.production.product')}</TableCell>
+                  <TableCell>{t('common.date')}</TableCell>
+                  <TableCell align="right">{t('common.actions')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pendingLotTests.map((lot) => (
+                  <TableRow key={lot.id}>
+                    <TableCell>{lot.lotNumber}</TableCell>
+                    <TableCell>{lot.productName}</TableCell>
+                    <TableCell>
+                      {lot.createdAt ? new Date(lot.createdAt).toLocaleString() : '—'}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Button size="small" component={Link} to="/quality">
+                        {t('modules.production.goToQC')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      )}
 
       <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
         <Tab label={t('modules.production.productionSchedule')} />
@@ -364,20 +415,17 @@ const ProductionPage: React.FC = () => {
                               </Box>
                             </TableCell>
                             <TableCell>
-                              <StatusChip status={order.status} />
+                              <Chip 
+                                label={order.status} 
+                                size="small" 
+                                color={
+                                  order.status === 'ready' ? 'success' :
+                                  order.status === 'qc' ? 'warning' :
+                                  order.status === 'in_production' ? 'info' : 'default'
+                                }
+                              />
                             </TableCell>
                             <TableCell>
-                              {order.status === 'confirmed' && (
-                                <Tooltip title={t('modules.production.startProduction')}>
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
-                                    onClick={() => handleStartProduction(order.id)}
-                                  >
-                                    <PlayArrowIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
                               {order.status === 'in_production' && (
                                 <Tooltip title="Send to QC">
                                   <IconButton
@@ -430,7 +478,7 @@ const ProductionPage: React.FC = () => {
                                   {order.customerName}
                                 </Typography>
                               </Box>
-                              <StatusChip status={order.status} />
+                              <Chip label={order.status} size="small" color="info" />
                             </Box>
                             <Typography variant="body2" sx={{ mb: 2 }}>
                               Delivery: {new Date(order.deliveryDate).toLocaleDateString()}
@@ -560,7 +608,7 @@ const ProductionPage: React.FC = () => {
       </Grid>
 
       {/* Order Details Dialog */}
-      <Dialog className="animate-fade-in" open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} maxWidth="md" fullWidth>
+      <Dialog open={openOrderDialog} onClose={() => setOpenOrderDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           Production Details: {selectedOrder?.orderNumber}
         </DialogTitle>
@@ -618,18 +666,6 @@ const ProductionPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenOrderDialog(false)}>Close</Button>
-          {selectedOrder?.status === 'confirmed' && (
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => {
-                handleStartProduction(selectedOrder.id);
-                setOpenOrderDialog(false);
-              }}
-            >
-              {t('modules.production.startProduction')}
-            </Button>
-          )}
           {selectedOrder?.status === 'in_production' && (
             <Button
               variant="contained"
@@ -645,67 +681,62 @@ const ProductionPage: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Internal Production Dialog */}
-      <Dialog
-        className="animate-fade-in"
-        open={openInternalDialog}
-        onClose={() => setOpenInternalDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Produce to Inventory / Warehouse</DialogTitle>
+      {/* Produce to Inventory Dialog */}
+      <Dialog open={openProduceToInv} onClose={() => setOpenProduceToInv(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('modules.production.produceToInventoryTitle')}</DialogTitle>
         <DialogContent>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label="Product"
-                value={internalProductId}
-                onChange={(e) => setInternalProductId(e.target.value)}
-                required
-              >
-                {products.map((product) => (
-                  <MenuItem key={product.id} value={product.id}>
-                    {product.name} ({product.meshSize})
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                type="number"
-                label="Quantity (tons)"
-                value={internalQuantity || ''}
-                onChange={(e) => setInternalQuantity(parseFloat(e.target.value) || 0)}
-                inputProps={{ min: 0, step: 0.1 }}
-                required
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Destination Location"
-                value={internalLocation}
-                onChange={(e) => setInternalLocation(e.target.value)}
-                helperText="e.g., Cantera Principal, Warehouse A, Buffer Zone"
-                required
-              />
-            </Grid>
-          </Grid>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {t('modules.production.produceToInventorySubtitle')}
+          </Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="produce-product-label">{t('modules.production.product')}</InputLabel>
+            <Select
+              labelId="produce-product-label"
+              value={produceProductId}
+              label={t('modules.production.product')}
+              onChange={(e) => setProduceProductId(e.target.value)}
+            >
+              {products.map((p) => (
+                <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            label={t('modules.production.quantity')}
+            type="number"
+            value={produceQuantity}
+            onChange={(e) => setProduceQuantity(e.target.value)}
+            inputProps={{ min: 1 }}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="produce-location-label">{t('modules.production.location')}</InputLabel>
+            <Select
+              labelId="produce-location-label"
+              value={produceLocation}
+              label={t('modules.production.location')}
+              onChange={(e) => setProduceLocation(e.target.value)}
+            >
+              <MenuItem value="Cantera Principal">Cantera Principal</MenuItem>
+              <MenuItem value="Near-well warehouse">Near-well warehouse</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            fullWidth
+            label={t('modules.production.lotNumber')}
+            value={produceLot}
+            onChange={(e) => setProduceLot(e.target.value)}
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenInternalDialog(false)}>
-            {t('common.cancel')}
-          </Button>
+          <Button onClick={() => setOpenProduceToInv(false)}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
-            color="primary"
-            onClick={handleInternalProductionSubmit}
-            disabled={internalLoading}
+            onClick={handleProduceToInvSubmit}
+            disabled={!produceProductId || !produceQuantity || !produceLocation || !produceLot || produceSubmitting}
           >
-            {internalLoading ? t('common.loading') : 'Save to Inventory'}
+            {produceSubmitting ? '…' : t('modules.production.produceSubmit')}
           </Button>
         </DialogActions>
       </Dialog>

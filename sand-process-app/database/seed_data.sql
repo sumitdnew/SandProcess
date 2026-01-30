@@ -37,7 +37,7 @@ INSERT INTO drivers (id, name, license_number, phone, hours_worked, hours_limit,
 ('880e8400-e29b-41d4-a716-446655440005', 'Carlos Fernández', 'DL-56789', '+54 9 11 5555-5555', 25.0, 48.0, true)
 ON CONFLICT (license_number) DO NOTHING;
 
--- Insert Trucks
+-- Insert Trucks (include at least one ≥75 tons for 75-ton orders)
 INSERT INTO trucks (id, license_plate, capacity, type, status, driver_id) VALUES
 ('990e8400-e29b-41d4-a716-446655440001', 'ABC-123', 25, 'old', 'available', NULL),
 ('990e8400-e29b-41d4-a716-446655440002', 'DEF-456', 26, 'old', 'available', NULL),
@@ -48,7 +48,9 @@ INSERT INTO trucks (id, license_plate, capacity, type, status, driver_id) VALUES
 ('990e8400-e29b-41d4-a716-446655440007', 'STU-901', 25, 'old', 'available', NULL),
 ('990e8400-e29b-41d4-a716-446655440008', 'VWX-234', 54, 'new', 'available', NULL),
 ('990e8400-e29b-41d4-a716-446655440009', 'YZA-567', 51, 'new', 'maintenance', NULL),
-('990e8400-e29b-41d4-a716-446655440010', 'BCD-890', 26, 'old', 'available', NULL)
+('990e8400-e29b-41d4-a716-446655440010', 'BCD-890', 26, 'old', 'available', NULL),
+('990e8400-e29b-41d4-a716-446655440011', 'HLG-080', 80, 'new', 'available', NULL),
+('990e8400-e29b-41d4-a716-446655440012', 'HLG-100', 100, 'new', 'available', NULL)
 ON CONFLICT (license_plate) DO NOTHING;
 
 -- Insert Sample Orders (optional - for testing)

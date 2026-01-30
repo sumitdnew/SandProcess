@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Breadcrumbs, Link } from '@mui/material';
+import { Box, Typography, Breadcrumbs, Link, Button } from '@mui/material';
 import { NavigateNext as NavigateNextIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ interface BreadcrumbItem {
 
 interface PageHeaderProps {
   title: string;
-  subtitle?: string | React.ReactNode;
+  subtitle?: string;
   breadcrumbs?: BreadcrumbItem[];
   action?: React.ReactNode;
 }
@@ -62,7 +62,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             {title}
           </Typography>
           {subtitle && (
-            <Typography variant="body2" color="text.secondary" component="div">
+            <Typography variant="body2" color="text.secondary">
               {subtitle}
             </Typography>
           )}

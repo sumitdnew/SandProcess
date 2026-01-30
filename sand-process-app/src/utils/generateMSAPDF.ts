@@ -1,24 +1,20 @@
 import jsPDF from 'jspdf';
-import { msasApi } from '../services/api';
+import { MSA } from '../types';
 
-// Company information constant
-const COMPANY_INFO = {
-  name: 'Sand Process Management Co.',
-  legalName: 'Sand Process Management Company S.A.',
-  address: 'Vaca Muerta Industrial Park, Neuquén, Argentina',
-  taxId: 'CUIT: 30-XXXXXXXX-X',
-  representative: 'Juan Carlos Pérez',
-  title: 'General Manager',
-};
+interface MSAData {
+  msa: MSA;
+  companyInfo: {
+    name: string;
+    legalName: string;
+    address: string;
+    taxId: string;
+    representative: string;
+    title: string;
+  };
+}
 
-const generateMSAPDF = async (msaId: string): Promise<void> => {
-  // Fetch MSA data from Supabase
-  const msa = await msasApi.getById(msaId);
-  
-  if (!msa) {
-    throw new Error('MSA not found');
-  }
-
+export const generateMSAPDF = (data: MSAData) => {
+  const { msa, companyInfo } = data;
   const doc = new jsPDF();
   
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -34,6 +30,18 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
       return true;
     }
     return false;
+  };
+
+  // Helper to add text with word wrap
+  const addText = (text: string, fontSize: number = 10, style: 'normal' | 'bold' = 'normal', maxWidth?: number) => {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', style);
+    const lines = doc.splitTextToSize(text, maxWidth || pageWidth - 2 * margin);
+    lines.forEach((line: string) => {
+      checkPageBreak();
+      doc.text(line, margin, yPosition);
+      yPosition += fontSize * 0.5;
+    });
   };
 
   const addSection = (title: string, content: string) => {
@@ -64,7 +72,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Agreement No: ${msa.msaNumber || `MSA-${msa.id.substring(0, 8).toUpperCase()}`}`, pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(`Agreement No: ${msa.id}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 10;
   doc.text(`Date: ${new Date(msa.startDate).toLocaleDateString()}`, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 20;
@@ -74,7 +82,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition += 10;
 
   doc.setFont('helvetica', 'bold');
-  doc.text(COMPANY_INFO.legalName, pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(companyInfo.legalName, pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 6;
   doc.setFont('helvetica', 'normal');
   doc.text('("Service Provider")', pageWidth / 2, yPosition, { align: 'center' });
@@ -96,8 +104,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   // Header
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  const msaNumber = msa.msaNumber || `MSA-${msa.id.substring(0, 8).toUpperCase()}`;
-  doc.text(`MSA No: ${msaNumber}`, margin, yPosition);
+  doc.text(`MSA No: ${msa.id}`, margin, yPosition);
   doc.text(`Page 2 of 5`, pageWidth - margin - 20, yPosition);
   yPosition += 10;
   doc.setDrawColor(200, 200, 200);
@@ -107,7 +114,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   // 1. Parties
   addSection(
     '1. PARTIES',
-    `This Master Service Agreement ("Agreement") is entered into as of ${new Date(msa.startDate).toLocaleDateString()} ("Effective Date") by and between ${COMPANY_INFO.legalName}, a company organized under the laws of Argentina with tax ID ${COMPANY_INFO.taxId} ("Service Provider"), and ${msa.customerName} ("Customer").`
+    `This Master Service Agreement ("Agreement") is entered into as of ${new Date(msa.startDate).toLocaleDateString()} ("Effective Date") by and between ${companyInfo.legalName}, a company organized under the laws of Argentina with tax ID ${companyInfo.taxId} ("Service Provider"), and ${msa.customerName} ("Customer").`
   );
 
   // 2. Services
@@ -139,7 +146,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition = margin;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`MSA No: ${msaNumber}`, margin, yPosition);
+  doc.text(`MSA No: ${msa.id}`, margin, yPosition);
   doc.text(`Page 3 of 5`, pageWidth - margin - 20, yPosition);
   yPosition += 10;
   doc.line(margin, yPosition, pageWidth - margin, yPosition);
@@ -180,7 +187,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition = margin;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`MSA No: ${msaNumber}`, margin, yPosition);
+  doc.text(`MSA No: ${msa.id}`, margin, yPosition);
   doc.text(`Page 4 of 5`, pageWidth - margin - 20, yPosition);
   yPosition += 10;
   doc.line(margin, yPosition, pageWidth - margin, yPosition);
@@ -209,7 +216,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition = margin;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`MSA No: ${msaNumber}`, margin, yPosition);
+  doc.text(`MSA No: ${msa.id}`, margin, yPosition);
   doc.text(`Page 5 of 5`, pageWidth - margin - 20, yPosition);
   yPosition += 10;
   doc.line(margin, yPosition, pageWidth - margin, yPosition);
@@ -222,7 +229,6 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition += 15;
 
   doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
   doc.text('IN WITNESS WHEREOF, the parties have executed this Agreement as of the Effective Date.', margin, yPosition);
   yPosition += 20;
 
@@ -232,15 +238,15 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   yPosition += 10;
 
   doc.setFont('helvetica', 'normal');
-  doc.text(COMPANY_INFO.legalName, margin, yPosition);
+  doc.text(companyInfo.legalName, margin, yPosition);
   yPosition += 15;
 
   doc.text('Signature: ________________________________', margin, yPosition);
   yPosition += 10;
 
-  doc.text(`Name: ${COMPANY_INFO.representative}`, margin, yPosition);
+  doc.text(`Name: ${companyInfo.representative}`, margin, yPosition);
   yPosition += 7;
-  doc.text(`Title: ${COMPANY_INFO.title}`, margin, yPosition);
+  doc.text(`Title: ${companyInfo.title}`, margin, yPosition);
   yPosition += 7;
   doc.text('Date: _______________', margin, yPosition);
   yPosition += 25;
@@ -270,7 +276,7 @@ const generateMSAPDF = async (msaId: string): Promise<void> => {
   doc.text('This is a legally binding agreement. Please review carefully before signing.', pageWidth / 2, yPosition, { align: 'center' });
 
   // Download
-  doc.save(`MSA-${msaNumber}.pdf`);
+  doc.save(`MSA-${msa.id}.pdf`);
 };
 
 export default generateMSAPDF;

@@ -22,25 +22,11 @@ import {
   TextField,
   MenuItem,
   InputAdornment,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
-import {
-  Add as AddIcon, 
-  LocalShipping as DispatchIcon, 
-  ArrowForward as NextStepIcon, 
-  Search as SearchIcon,
-  Description as POIcon,
-  Download as DownloadIcon,
-  Close as CloseIcon,
-} from '@mui/icons-material';
-import { ordersApi, trucksApi, driversApi, customersApi } from '../services/api';
-import { supabase } from '../config/supabase';
-import { Order, OrderStatus, Truck, Driver, Customer } from '../types';
+import { Add as AddIcon, ArrowForward as NextStepIcon, Search as SearchIcon } from '@mui/icons-material';
+import { ordersApi } from '../services/api';
+import { Order, OrderStatus } from '../types';
 import CreateOrderForm from '../components/orders/CreateOrderForm';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
-import generatePurchaseOrderPDF from '../utils/generatePurchaseOrderPDF';
 
 const OrdersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -49,32 +35,14 @@ const OrdersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const [openCreateForm, setOpenCreateForm] = useState(false);
-  const [openDispatchDialog, setOpenDispatchDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [dispatchOrder, setDispatchOrder] = useState<Order | null>(null);
-  const [availableTrucks, setAvailableTrucks] = useState<Truck[]>([]);
-  const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
-  const [selectedTruckId, setSelectedTruckId] = useState('');
-  const [selectedDriverId, setSelectedDriverId] = useState('');
   const [orderCertificates, setOrderCertificates] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerFilter, setCustomerFilter] = useState<string>('all');
 
   useEffect(() => {
     loadOrders();
-    loadCustomers();
   }, []);
-
-  const loadCustomers = async () => {
-    try {
-      const data = await customersApi.getAll();
-      setCustomers(data);
-    } catch (err) {
-      console.error('Error loading customers:', err);
-    }
-  };
 
   const loadOrders = async () => {
     try {
@@ -109,6 +77,21 @@ const OrdersPage: React.FC = () => {
     loadOrders();
   };
 
+  const getStatusColor = (status: OrderStatus) => {
+    const colors: Record<OrderStatus, string> = {
+      pending: 'default',
+      confirmed: 'info',
+      in_production: 'warning',
+      qc: 'warning',
+      ready: 'success',
+      dispatched: 'info',
+      delivered: 'success',
+      completed: 'success',
+      invoiced: 'success',
+    };
+    return colors[status] || 'default';
+  };
+
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
     setOpenDialog(true);
@@ -119,121 +102,17 @@ const OrdersPage: React.FC = () => {
     setSelectedOrder(null);
   };
 
-  const handleGeneratePO = async (order: Order) => {
-    try {
-      await generatePurchaseOrderPDF(order.id);
-    } catch (error: any) {
-      console.error('Error generating PO:', error);
-      alert(error.message || 'Failed to generate Purchase Order. Please try again.');
-    }
-  };
-
-  const handleOpenDispatchDialog = async (order: Order) => {
-    try {
-      setDispatchOrder(order);
-      const [trucksData, driversData] = await Promise.all([
-        trucksApi.getAll(),
-        driversApi.getAll(),
-      ]);
-      const available = trucksData.filter(t => t.status === 'available');
-      const availableDriversList = driversData.filter(d => d.available);
-      setAvailableTrucks(available);
-      setAvailableDrivers(availableDriversList);
-      setSelectedTruckId('');
-      setSelectedDriverId('');
-      setOpenDispatchDialog(true);
-    } catch (err: any) {
-      console.error('Error loading trucks/drivers:', err);
-      setError(err.message || 'Failed to load trucks/drivers');
-    }
-  };
-
-  const handleDispatch = async () => {
-    if (!dispatchOrder || !selectedTruckId || !selectedDriverId) {
-      alert('Please select a truck and driver');
-      return;
-    }
-
-    // Check if order has a certificate
-    const hasCert = await ordersApi.hasCertificate(dispatchOrder.id);
-    if (!hasCert) {
-      alert('Cannot dispatch: Order must have a QC certificate. Please complete and approve QC testing first.');
-      return;
-    }
-
-    try {
-      // Get the certificate for this order to link to truck
-      const { data: certData } = await supabase
-        .from('qc_tests')
-        .select('id, certificate_id')
-        .eq('order_id', dispatchOrder.id)
-        .eq('status', 'passed')
-        .not('certificate_id', 'is', null)
-        .single();
-
-      // Create delivery record
-      const { error } = await supabase
-        .from('deliveries')
-        .insert({
-          order_id: dispatchOrder.id,
-          truck_id: selectedTruckId,
-          driver_id: selectedDriverId,
-          status: 'assigned',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Link certificate to truck (RN-003: Certificate linked to truck number)
-      if (certData && certData.certificate_id) {
-        await supabase
-          .from('qc_tests')
-          .update({ truck_id: selectedTruckId })
-          .eq('id', certData.id);
-      }
-
-      // Update order status
-      await ordersApi.updateStatus(dispatchOrder.id, 'dispatched');
-
-      // Update truck status
-      await supabase
-        .from('trucks')
-        .update({ 
-          status: 'assigned',
-          assigned_order_id: dispatchOrder.id,
-          driver_id: selectedDriverId
-        })
-        .eq('id', selectedTruckId);
-
-      setOpenDispatchDialog(false);
-      setDispatchOrder(null);
-      setSelectedTruckId('');
-      setSelectedDriverId('');
-      loadOrders(); // Refresh orders list
-    } catch (err: any) {
-      console.error('Error dispatching order:', err);
-      setError(err.message || 'Failed to dispatch order');
-    }
-  };
-
-  const canDispatch = (order: Order) => {
-    // Order must be ready and have a certificate
-    return (order.status === 'ready' || order.status === 'confirmed') && orderCertificates[order.id] === true;
-  };
 
   const getNextStatus = (currentStatus: OrderStatus): OrderStatus | null => {
     const statusFlow: Record<OrderStatus, OrderStatus | null> = {
       pending: 'confirmed',
-      confirmed: 'in_production',
+      confirmed: null, // Production started only from Dispatcher "Produce"
       in_production: 'qc',
       qc: 'ready',
       ready: null, // Next step is dispatch (handled separately)
-      // After dispatch, further transitions (delivered/completed/invoiced)
-      // are handled from Logistics/Billing flows, not from Orders page
-      dispatched: null,
-      delivered: null,
-      completed: null,
+      dispatched: 'delivered',
+      delivered: 'completed',
+      completed: 'invoiced',
       invoiced: null,
     };
     return statusFlow[currentStatus] || null;
@@ -295,21 +174,21 @@ const OrdersPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.orders.title')}
-        action={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setOpenCreateForm(true)}
-          >
-            {t('modules.orders.createOrder')}
-          </Button>
-        }
-      />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          {t('modules.orders.title')}
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenCreateForm(true)}
+        >
+          {t('modules.orders.createOrder')}
+        </Button>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -347,21 +226,6 @@ const OrdersPage: React.FC = () => {
           <MenuItem value="delivered">{t('orderStatus.delivered')}</MenuItem>
           <MenuItem value="completed">{t('orderStatus.completed')}</MenuItem>
         </TextField>
-        <TextField
-          select
-          label="Filter by Customer"
-          value={customerFilter}
-          onChange={(e) => setCustomerFilter(e.target.value)}
-          size="small"
-          sx={{ minWidth: 200 }}
-        >
-          <MenuItem value="all">All Customers</MenuItem>
-          {customers.map((customer) => (
-            <MenuItem key={customer.id} value={customer.id}>
-              {customer.name}
-            </MenuItem>
-          ))}
-        </TextField>
       </Box>
 
       <TableContainer component={Paper}>
@@ -397,8 +261,7 @@ const OrdersPage: React.FC = () => {
                     order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     order.customerName.toLowerCase().includes(searchTerm.toLowerCase());
                   const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-                  const matchesCustomer = customerFilter === 'all' || order.customerId === customerFilter;
-                  return matchesSearch && matchesStatus && matchesCustomer;
+                  return matchesSearch && matchesStatus;
                 })
                 .map((order) => (
                 <TableRow key={order.id}>
@@ -417,7 +280,11 @@ const OrdersPage: React.FC = () => {
                   <TableCell>${order.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      <StatusChip status={order.status} />
+                      <Chip
+                        label={t(`orderStatus.${order.status}`)}
+                        color={getStatusColor(order.status) as any}
+                        size="small"
+                      />
                       {order.status === 'ready' || order.status === 'confirmed' ? (
                         orderCertificates[order.id] ? (
                           <Chip
@@ -442,15 +309,6 @@ const OrdersPage: React.FC = () => {
                       <Button size="small" onClick={() => handleViewOrder(order)}>
                         {t('common.view')}
                       </Button>
-                      <Tooltip title="Download Purchase Order">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleGeneratePO(order)}
-                          color="primary"
-                        >
-                          <POIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
                       {canUpdateStatus(order) && (
                         <Button 
                           size="small" 
@@ -467,28 +325,6 @@ const OrdersPage: React.FC = () => {
                           {getNextStatusLabel(order.status)}
                         </Button>
                       )}
-                      {((order.status === 'ready' || order.status === 'confirmed') && !orderCertificates[order.id]) && (
-                        <Button 
-                          size="small" 
-                          variant="outlined"
-                          color="warning"
-                          disabled
-                          title={t('modules.orders.certificateRequired')}
-                        >
-                          Certificate Required
-                        </Button>
-                      )}
-                      {canDispatch(order) && (
-                        <Button 
-                          size="small" 
-                          variant="contained"
-                          color="primary"
-                          startIcon={<DispatchIcon />}
-                          onClick={() => handleOpenDispatchDialog(order)}
-                        >
-                          Dispatch
-                        </Button>
-                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -498,29 +334,9 @@ const OrdersPage: React.FC = () => {
         </Table>
       </TableContainer>
 
-      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>
-              {selectedOrder ? t('modules.orders.orderNumber') + ': ' + selectedOrder.orderNumber : t('modules.orders.createOrder')}
-            </span>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {selectedOrder && (
-                <Tooltip title="Download Purchase Order">
-                  <IconButton 
-                    onClick={() => selectedOrder && handleGeneratePO(selectedOrder)}
-                    size="small"
-                    color="primary"
-                  >
-                    <DownloadIcon />
-                  </IconButton>
-                </Tooltip>
-              )}
-              <IconButton onClick={handleCloseDialog} size="small">
-                <CloseIcon />
-              </IconButton>
-            </Box>
-          </Box>
+          {selectedOrder ? t('modules.orders.orderNumber') + ': ' + selectedOrder.orderNumber : t('modules.orders.createOrder')}
         </DialogTitle>
         <DialogContent>
           {selectedOrder ? (
@@ -552,21 +368,11 @@ const OrdersPage: React.FC = () => {
               <Grid item xs={12}>
                 <Typography><strong>{t('modules.orders.totalAmount')}:</strong> ${selectedOrder.totalAmount.toLocaleString()}</Typography>
               </Grid>
-              {selectedOrder.poDocumentUrl && (
-                <Grid item xs={12}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    href={selectedOrder.poDocumentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t('modules.orders.viewUploadedPO') || 'View Uploaded Customer PO'}
-                  </Button>
-                </Grid>
-              )}
               <Grid item xs={12}>
-                <StatusChip status={selectedOrder.status} />
+                <Chip
+                  label={t(`orderStatus.${selectedOrder.status}`)}
+                  color={getStatusColor(selectedOrder.status) as any}
+                />
               </Grid>
             </Grid>
           ) : (
@@ -574,16 +380,7 @@ const OrdersPage: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedOrder && (
-            <Button 
-              startIcon={<POIcon />}
-              onClick={() => selectedOrder && handleGeneratePO(selectedOrder)}
-              variant="outlined"
-            >
-              Download PO
-            </Button>
-          )}
-          <Button onClick={handleCloseDialog}>{t('common.close') || 'Close'}</Button>
+          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -592,77 +389,6 @@ const OrdersPage: React.FC = () => {
         onClose={() => setOpenCreateForm(false)}
         onSuccess={handleCreateSuccess}
       />
-
-      {/* Dispatch Dialog */}
-      <Dialog className="animate-fade-in" open={openDispatchDialog} onClose={() => setOpenDispatchDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          Dispatch Order: {dispatchOrder?.orderNumber}
-        </DialogTitle>
-        <DialogContent>
-          {dispatchOrder && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Order Details
-                </Typography>
-                <Typography><strong>Customer:</strong> {dispatchOrder.customerName}</Typography>
-                <Typography><strong>Delivery Location:</strong> {dispatchOrder.deliveryLocation}</Typography>
-                <Typography><strong>Total Amount:</strong> ${dispatchOrder.totalAmount.toLocaleString()}</Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  select
-                  fullWidth
-                  label={t('modules.logistics.truck')}
-                  value={selectedTruckId}
-                  onChange={(e) => setSelectedTruckId(e.target.value)}
-                  required
-                >
-                  {availableTrucks.length === 0 ? (
-                    <MenuItem disabled>No available trucks</MenuItem>
-                  ) : (
-                    availableTrucks.map((truck) => (
-                      <MenuItem key={truck.id} value={truck.id}>
-                        {truck.licensePlate} - {truck.capacity} tons ({truck.type === 'old' ? 'Old' : 'New'})
-                      </MenuItem>
-                    ))
-                  )}
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  select
-                  fullWidth
-                  label={t('modules.logistics.driver')}
-                  value={selectedDriverId}
-                  onChange={(e) => setSelectedDriverId(e.target.value)}
-                  required
-                >
-                  {availableDrivers.length === 0 ? (
-                    <MenuItem disabled>No available drivers</MenuItem>
-                  ) : (
-                    availableDrivers.map((driver) => (
-                      <MenuItem key={driver.id} value={driver.id}>
-                        {driver.name} - {driver.hoursWorked}/{driver.hoursLimit} hours
-                      </MenuItem>
-                    ))
-                  )}
-                </TextField>
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDispatchDialog(false)}>{t('common.cancel')}</Button>
-          <Button 
-            onClick={handleDispatch} 
-            variant="contained"
-            disabled={!selectedTruckId || !selectedDriverId || availableTrucks.length === 0 || availableDrivers.length === 0}
-          >
-            Dispatch
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

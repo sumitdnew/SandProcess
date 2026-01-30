@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,11 +10,19 @@ import {
   Paper,
   Chip,
   Button,
+  IconButton,
   Divider,
   LinearProgress,
   Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Alert,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -23,10 +31,12 @@ import {
   LocalShipping as TruckIcon,
   Science as QCIcon,
   Receipt as InvoiceIcon,
+  Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Refresh as RefreshIcon,
   ArrowForward as ArrowForwardIcon,
   AttachMoney as MoneyIcon,
+  Inventory as InventoryIcon,
   Speed as SpeedIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
@@ -45,11 +55,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { ordersApi, deliveriesApi, qcTestsApi, invoicesApi, settingsApi } from '../services/api';
-import { Order, Delivery, QCTest, Invoice } from '../types';
+import { ordersApi, deliveriesApi, qcTestsApi, invoicesApi, tasksApi } from '../services/api';
+import { Order, Delivery, QCTest, Invoice, TaskItem } from '../types';
 import { useApp } from '../context/AppContext';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
 
 // Color palette
 const COLORS = {
@@ -90,6 +98,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { currentRole } = useApp();
   const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalRevenue: 0,
     revenueChange: 0,
@@ -107,19 +116,65 @@ const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [tests, setTests] = useState<QCTest[]>([]);
-  // We compute invoice-based metrics from invoicesData directly; no need to store invoices separately
-  const [, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [revenueData, setRevenueData] = useState<ChartData[]>([]);
   const [orderStatusData, setOrderStatusData] = useState<ChartData[]>([]);
   const [productionData, setProductionData] = useState<ChartData[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const calculateMetrics = useCallback((
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (!currentRole) {
+      setTasks([]);
+      return;
+    }
+    let cancelled = false;
+    tasksApi
+      .getForRole(currentRole)
+      .then((data) => {
+        if (!cancelled) setTasks(data);
+      })
+      .catch(() => {
+        if (!cancelled) setTasks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentRole]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [ordersData, deliveriesData, testsData, invoicesData] = await Promise.all([
+        ordersApi.getAll(),
+        deliveriesApi.getAll(),
+        qcTestsApi.getAll(),
+        invoicesApi.getAll(),
+      ]);
+
+      setOrders(ordersData);
+      setDeliveries(deliveriesData);
+      setTests(testsData);
+      setInvoices(invoicesData);
+
+      calculateMetrics(ordersData, deliveriesData, testsData, invoicesData);
+      generateChartData(ordersData, deliveriesData, testsData);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateMetrics = (
     ordersData: Order[],
     deliveriesData: Delivery[],
     testsData: QCTest[],
-    invoicesData: Invoice[],
-    productionCapacity: number = 75
+    invoicesData: Invoice[]
   ) => {
     // Revenue calculations
     const totalRevenue = invoicesData
@@ -163,24 +218,17 @@ const Dashboard: React.FC = () => {
       pendingInvoices,
       overdueInvoices,
       avgDeliveryTime,
-      productionCapacity,
+      productionCapacity: 75,
     });
-  }, []);
+  };
 
-  const generateChartData = useCallback((
+  const generateChartData = (
     ordersData: Order[],
     deliveriesData: Delivery[],
     testsData: QCTest[]
   ) => {
     // Revenue trend (last 6 months)
-    const months = [
-      t('dashboard.months.jan'),
-      t('dashboard.months.feb'),
-      t('dashboard.months.mar'),
-      t('dashboard.months.apr'),
-      t('dashboard.months.may'),
-      t('dashboard.months.jun'),
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
     const revenueByMonth = months.map((month, index) => ({
       name: month,
       value: Math.floor(Math.random() * 50000) + 30000, // Mock data
@@ -215,47 +263,7 @@ const Dashboard: React.FC = () => {
       }))
       .slice(0, 5); // Top 5 products
     setProductionData(prodData);
-  }, [t]);
-
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [ordersData, deliveriesData, testsData, invoicesData, productionCapacity] = await Promise.all([
-        ordersApi.getAll(),
-        deliveriesApi.getAll(),
-        qcTestsApi.getAll(),
-        invoicesApi.getAll(),
-        settingsApi.getValue<{value: number}>('production_capacity', {value: 75}).catch(() => ({value: 75})),
-      ]);
-
-      setOrders(ordersData);
-      setDeliveries(deliveriesData);
-      setTests(testsData);
-      setInvoices(invoicesData);
-
-      calculateMetrics(ordersData, deliveriesData, testsData, invoicesData, productionCapacity.value);
-      generateChartData(ordersData, deliveriesData, testsData);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [calculateMetrics, generateChartData]);
-
-  useEffect(() => {
-    if (currentRole === 'customer_user') {
-      // Customers shouldn't see the global operations dashboard – send them to their portal
-      navigate('/customer-portal', { replace: true });
-      return;
-    }
-    if (currentRole === 'driver') {
-      // Drivers should go to logistics page
-      navigate('/logistics', { replace: true });
-      return;
-    }
-    loadData();
-  }, [currentRole, navigate, loadData]);
+  };
 
   const getRecentActivity = () => {
     const activities: Array<{
@@ -272,7 +280,7 @@ const Dashboard: React.FC = () => {
       activities.push({
         id: order.id,
         type: 'order',
-        title: `${t('dashboard.activityTypes.order')} ${order.orderNumber}`,
+        title: `Order ${order.orderNumber}`,
         subtitle: order.customerName,
         time: new Date(order.createdAt),
         status: order.status,
@@ -284,7 +292,7 @@ const Dashboard: React.FC = () => {
       activities.push({
         id: delivery.id,
         type: 'delivery',
-        title: `${t('dashboard.activityTypes.delivery')} ${delivery.orderNumber}`,
+        title: `Delivery ${delivery.orderNumber}`,
         subtitle: delivery.customerName,
         time: new Date(delivery.createdAt),
         status: delivery.status,
@@ -296,9 +304,9 @@ const Dashboard: React.FC = () => {
       activities.push({
         id: test.id,
         type: 'qc',
-        title: `${t('dashboard.activityTypes.qc')} ${test.lotNumber}`,
+        title: `QC Test ${test.lotNumber}`,
         subtitle: test.productName,
-        time: test.testDate ? new Date(test.testDate) : new Date(),
+        time: new Date(test.createdAt || test.testDate || Date.now()),
         status: test.status,
       });
     });
@@ -339,16 +347,11 @@ const Dashboard: React.FC = () => {
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return t('common.justNow');
-    if (seconds < 3600) return t('common.minutesAgo', { minutes: Math.floor(seconds / 60) });
-    if (seconds < 86400) return t('common.hoursAgo', { hours: Math.floor(seconds / 3600) });
-    return t('common.daysAgo', { days: Math.floor(seconds / 86400) });
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
   };
-
-  // While redirecting customer users, avoid flashing the admin dashboard
-  if (currentRole === 'customer_user') {
-    return null;
-  }
 
   if (loading) {
     return (
@@ -363,49 +366,78 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('common.dashboard')}
-        subtitle={`${t('common.lastUpdated')}: ${lastUpdated.toLocaleTimeString()}`}
-        action={
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={loadData}
-          >
-            {t('common.refresh')}
-          </Button>
-        }
-      />
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            Dashboard
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={loadData}
+        >
+          Refresh
+        </Button>
+      </Box>
 
       {/* Alerts */}
       {urgentOrders.length > 0 && (
         <Alert 
-          className="animate-slide-in-up"
           severity="warning" 
           sx={{ mb: 3 }}
           action={
             <Button color="inherit" size="small" onClick={() => navigate('/quality')}>
-              {t('common.view')}
+              View
             </Button>
           }
         >
-          {t('dashboard.ordersAwaitingQC', { count: urgentOrders.length })}
+          {urgentOrders.length} orders awaiting QC testing
         </Alert>
       )}
 
       {metrics.overdueInvoices > 0 && (
         <Alert 
-          className="animate-slide-in-up"
           severity="error" 
           sx={{ mb: 3 }}
           action={
             <Button color="inherit" size="small" onClick={() => navigate('/billing')}>
-              {t('common.view')}
+              View
             </Button>
           }
         >
-          {t('dashboard.overdueInvoicesRequireAttention', { count: metrics.overdueInvoices })}
+          {metrics.overdueInvoices} overdue invoices require attention
         </Alert>
+      )}
+
+      {/* My tasks */}
+      {tasks.length > 0 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">My tasks</Typography>
+            <Button size="small" onClick={() => navigate('/tasks')} endIcon={<ArrowForwardIcon />}>
+              View all
+            </Button>
+          </Box>
+          <Grid container spacing={2}>
+            {tasks.map((task) => (
+              <Grid item xs={12} sm={6} md={4} key={task.id}>
+                <Card variant="outlined" sx={{ cursor: 'pointer' }} onClick={() => navigate(task.link)}>
+                  <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Typography variant="subtitle2">{task.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {task.count} {task.count === 1 ? 'task' : 'tasks'}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
       )}
 
       {/* KPI Cards */}
@@ -417,7 +449,7 @@ const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <Box sx={{ flex: 1 }}>
                   <Typography color="textSecondary" variant="body2" gutterBottom>
-                    {t('dashboard.totalRevenue')}
+                    Total Revenue
                   </Typography>
                   <Typography variant="h4" sx={{ mb: 1 }}>
                     {formatCurrency(metrics.totalRevenue)}
@@ -435,7 +467,7 @@ const Dashboard: React.FC = () => {
                       {Math.abs(metrics.revenueChange)}%
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      {t('dashboard.vsLastMonth')}
+                      vs last month
                     </Typography>
                   </Box>
                 </Box>
@@ -454,7 +486,7 @@ const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <Box sx={{ flex: 1 }}>
                   <Typography color="textSecondary" variant="body2" gutterBottom>
-                    {t('dashboard.totalOrders')}
+                    Total Orders
                   </Typography>
                   <Typography variant="h4" sx={{ mb: 1 }}>
                     {metrics.totalOrders}
@@ -472,7 +504,7 @@ const Dashboard: React.FC = () => {
                       {Math.abs(metrics.ordersChange)}%
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      {t('dashboard.vsLastMonth')}
+                      vs last month
                     </Typography>
                   </Box>
                 </Box>
@@ -491,7 +523,7 @@ const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <Box sx={{ flex: 1 }}>
                   <Typography color="textSecondary" variant="body2" gutterBottom>
-                    {t('dashboard.activeDeliveries')}
+                    Active Deliveries
                   </Typography>
                   <Typography variant="h4" sx={{ mb: 1 }}>
                     {metrics.activeDeliveries}
@@ -500,8 +532,8 @@ const Dashboard: React.FC = () => {
                     <SpeedIcon fontSize="small" sx={{ color: 'info.main' }} />
                     <Typography variant="body2" color="textSecondary">
                       {metrics.avgDeliveryTime > 0 
-                        ? `${t('dashboard.avg')}: ${metrics.avgDeliveryTime.toFixed(1)}h`
-                        : t('dashboard.noData')
+                        ? `Avg: ${metrics.avgDeliveryTime.toFixed(1)}h`
+                        : 'No data'
                       }
                     </Typography>
                   </Box>
@@ -521,7 +553,7 @@ const Dashboard: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                 <Box sx={{ flex: 1 }}>
                   <Typography color="textSecondary" variant="body2" gutterBottom>
-                    {t('dashboard.qcPassRate')}
+                    QC Pass Rate
                   </Typography>
                   <Typography variant="h4" sx={{ mb: 1 }}>
                     {metrics.qcPassRate.toFixed(0)}%
@@ -529,7 +561,7 @@ const Dashboard: React.FC = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />
                     <Typography variant="body2" color="textSecondary">
-                      {tests.filter(t => t.status === 'passed').length} / {tests.length} {t('dashboard.tests')}
+                      {tests.filter(t => t.status === 'passed').length} / {tests.length} tests
                     </Typography>
                   </Box>
                 </Box>
@@ -547,8 +579,8 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={8}>
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6">{t('dashboard.revenueTrend')}</Typography>
-              <Chip label={t('dashboard.last6Months')} size="small" />
+              <Typography variant="h6">Revenue Trend</Typography>
+              <Chip label="Last 6 months" size="small" />
             </Box>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={revenueData}>
@@ -564,7 +596,7 @@ const Dashboard: React.FC = () => {
                   dataKey="value" 
                   stroke={COLORS.success} 
                   strokeWidth={3}
-                  name={t('dashboard.revenue')}
+                  name="Revenue"
                   dot={{ fill: COLORS.success, r: 5 }}
                 />
               </LineChart>
@@ -576,7 +608,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={4}>
           <Paper sx={{ p: 3, height: '100%' }}>
             <Typography variant="h6" gutterBottom>
-              {t('dashboard.orderStatus')}
+              Order Status
             </Typography>
             {orderStatusData.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
@@ -601,7 +633,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography variant="body2" color="textSecondary">
-                  {t('dashboard.noOrderData')}
+                  No order data available
                 </Typography>
               </Box>
             )}
@@ -612,8 +644,8 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={6}>
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6">{t('dashboard.productionVolume')}</Typography>
-              <Chip label={t('dashboard.top5Products')} size="small" />
+              <Typography variant="h6">Production Volume (Tons)</Typography>
+              <Chip label="Top 5 Products" size="small" />
             </Box>
             {productionData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
@@ -623,13 +655,13 @@ const Dashboard: React.FC = () => {
                   <YAxis />
                   <RechartsTooltip />
                   <Legend />
-                  <Bar dataKey="value" fill={COLORS.primary} name={t('dashboard.quantityTons')} />
+                  <Bar dataKey="value" fill={COLORS.primary} name="Quantity (tons)" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <Typography variant="body2" color="textSecondary">
-                  {t('dashboard.noProductionData')}
+                  No production data available
                 </Typography>
               </Box>
             )}
@@ -640,9 +672,9 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} lg={6}>
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">{t('dashboard.recentActivity')}</Typography>
+              <Typography variant="h6">Recent Activity</Typography>
               <Button size="small" endIcon={<ArrowForwardIcon />}>
-                {t('common.viewAll')}
+                View All
               </Button>
             </Box>
             <Divider sx={{ mb: 2 }} />
@@ -680,7 +712,11 @@ const Dashboard: React.FC = () => {
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: 'right' }}>
-                      <StatusChip status={activity.status} sx={{ mb: 0.5 }} />
+                      <Chip
+                        label={activity.status}
+                        size="small"
+                        sx={{ mb: 0.5 }}
+                      />
                       <Typography variant="caption" display="block" color="textSecondary">
                         {formatTimeAgo(activity.time)}
                       </Typography>
@@ -692,7 +728,7 @@ const Dashboard: React.FC = () => {
               <Box sx={{ textAlign: 'center', py: 4 }}>
                 <ScheduleIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
                 <Typography variant="body2" color="textSecondary">
-                  {t('dashboard.noRecentActivity')}
+                  No recent activity
                 </Typography>
               </Box>
             )}
@@ -703,14 +739,14 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              {t('dashboard.quickStats')}
+              Quick Stats
             </Typography>
             <Divider sx={{ mb: 3 }} />
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {t('dashboard.pendingInvoices')}
+                    Pending Invoices
                   </Typography>
                   <Typography variant="h4" color="warning.main">
                     {metrics.pendingInvoices}
@@ -720,14 +756,14 @@ const Dashboard: React.FC = () => {
                     sx={{ mt: 1 }}
                     onClick={() => navigate('/billing')}
                   >
-                    {t('common.view')}
+                    View
                   </Button>
                 </Box>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {t('dashboard.overdueInvoices')}
+                    Overdue Invoices
                   </Typography>
                   <Typography variant="h4" color="error.main">
                     {metrics.overdueInvoices}
@@ -737,14 +773,14 @@ const Dashboard: React.FC = () => {
                     sx={{ mt: 1 }}
                     onClick={() => navigate('/billing')}
                   >
-                    {t('common.view')}
+                    View
                   </Button>
                 </Box>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {t('dashboard.productionCapacity')}
+                    Production Capacity
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                     <Typography variant="h4" color="info.main">
@@ -761,7 +797,7 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} sm={6} md={3}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {t('dashboard.qcPending')}
+                    QC Pending
                   </Typography>
                   <Typography variant="h4" color="primary.main">
                     {tests.filter(t => t.status === 'pending' || t.status === 'in_progress').length}
@@ -771,7 +807,7 @@ const Dashboard: React.FC = () => {
                     sx={{ mt: 1 }}
                     onClick={() => navigate('/quality')}
                   >
-                    {t('common.view')}
+                    View
                   </Button>
                 </Box>
               </Grid>

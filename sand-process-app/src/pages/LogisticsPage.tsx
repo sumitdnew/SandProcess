@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -8,6 +8,13 @@ import {
   Grid,
   Card,
   CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
   Button,
   CircularProgress,
   Alert,
@@ -22,10 +29,10 @@ import {
   Step,
   StepLabel,
   IconButton,
+  Tooltip,
   Badge,
   Divider,
   AlertTitle,
-  Chip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,6 +46,7 @@ import {
   PhotoCamera as PhotoIcon,
   Download as DownloadIcon,
   Close as CloseIcon,
+  Warning as WarningIcon,
   Speed as SpeedIcon,
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
@@ -47,10 +55,6 @@ import L from 'leaflet';
 import { deliveriesApi, ordersApi, trucksApi, driversApi } from '../services/api';
 import { supabase } from '../config/supabase';
 import { Delivery, Order, Truck, Driver } from '../types';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
-import { useApp } from '../context/AppContext';
-import generateTraceabilityPDF from '../utils/generateTraceabilityPDF';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -58,6 +62,14 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// Custom truck icon for map
+const truckIcon = L.divIcon({
+  html: '<div style="font-size: 24px;">🚚</div>',
+  className: 'custom-truck-icon',
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
 });
 
 const quarryIcon = L.divIcon({
@@ -93,7 +105,6 @@ const MapBoundsSetter: React.FC<{ delivery: Delivery | null }> = ({ delivery }) 
 
 const LogisticsPage: React.FC = () => {
   const { t } = useTranslation();
-  const { currentRole } = useApp();
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -107,6 +118,7 @@ const LogisticsPage: React.FC = () => {
   const [selectedTruckId, setSelectedTruckId] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [certByOrderId, setCertByOrderId] = useState<Record<string, boolean>>({});
   const [openDeliveryConfirmDialog, setOpenDeliveryConfirmDialog] = useState(false);
   const [signatureData, setSignatureData] = useState({
     signerName: '',
@@ -115,10 +127,14 @@ const LogisticsPage: React.FC = () => {
     photo: '',
   });
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const hasSignatureStrokesRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -131,19 +147,28 @@ const LogisticsPage: React.FC = () => {
         o.status === 'ready' || o.status === 'confirmed'
       );
       setOrders(readyOrders);
-      // Only set initial delivery if none is selected (one-time initialization)
-      setSelectedDelivery(prev => prev || (deliveriesData.length > 0 ? deliveriesData[0] : null));
+      const orderIds = Array.from(new Set((deliveriesData || []).map((d) => d.orderId)));
+      const certMap: Record<string, boolean> = {};
+      await Promise.all(
+        orderIds.map(async (id) => {
+          try {
+            certMap[id] = await ordersApi.hasCertificate(id);
+          } catch {
+            certMap[id] = false;
+          }
+        })
+      );
+      setCertByOrderId(certMap);
+      if (deliveriesData.length > 0 && !selectedDelivery) {
+        setSelectedDelivery(deliveriesData[0]);
+      }
     } catch (err: any) {
       console.error('Error loading logistics data:', err);
       setError(err.message || 'Failed to load logistics data');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  };
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -205,7 +230,7 @@ const LogisticsPage: React.FC = () => {
       const eta = new Date();
       eta.setHours(eta.getHours() + 2);
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('deliveries')
         .insert({
           order_id: selectedOrder.id,
@@ -269,53 +294,105 @@ const LogisticsPage: React.FC = () => {
     }
   };
 
-
-  // Signature canvas handlers
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
-    hasSignatureStrokesRef.current = false;
+  // Signature canvas: init when dialog open and canvas visible
+  useEffect(() => {
+    if (!openDeliveryConfirmDialog || signatureData.signatureImage) return;
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const raf = requestAnimationFrame(() => {
+      const w = Math.min(container.offsetWidth || 400, 600);
+      const h = 150;
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [openDeliveryConfirmDialog, signatureData.signatureImage]);
+
+  const getCanvasCoords = (clientX: number, clientY: number) => {
+    if (!canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const startDrawing = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    const coords = getCanvasCoords(clientX, clientY);
+    if (!canvas || !coords) return;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       setIsDrawing(true);
       ctx.beginPath();
-      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.moveTo(coords.x, coords.y);
     }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const draw = (clientX: number, clientY: number) => {
     if (!isDrawing || !canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext('2d');
+    const coords = getCanvasCoords(clientX, clientY);
+    if (!coords) return;
+    const ctx = canvasRef.current.getContext('2d');
     if (ctx) {
-      hasSignatureStrokesRef.current = true;
-      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.lineTo(coords.x, coords.y);
       ctx.stroke();
     }
   };
 
   const stopDrawing = () => {
     if (!canvasRef.current) return;
+    const wasDrawing = isDrawing;
     setIsDrawing(false);
-    // If no strokes were drawn, don't capture a signature image
-    if (!hasSignatureStrokesRef.current) {
-      return;
+    if (wasDrawing) {
+      const img = canvasRef.current.toDataURL('image/png');
+      setSignatureData(prev => ({ ...prev, signatureImage: img }));
     }
-    const canvas = canvasRef.current;
-    const signatureImage = canvas.toDataURL('image/png');
-    setSignatureData(prev => ({ ...prev, signatureImage }));
   };
 
   const clearSignature = () => {
-    if (!canvasRef.current) return;
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      setSignatureData(prev => ({ ...prev, signatureImage: '' }));
+      const w = canvas.width;
+      const h = canvas.height;
+      const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.scale(dpr, dpr);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
+    setSignatureData(prev => ({ ...prev, signatureImage: '' }));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => startDrawing(e.clientX, e.clientY);
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => draw(e.clientX, e.clientY);
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (t) startDrawing(t.clientX, t.clientY);
+  };
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    if (t) draw(t.clientX, t.clientY);
+  };
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    stopDrawing();
   };
 
   const handleConfirmDelivery = async () => {
@@ -332,6 +409,11 @@ const LogisticsPage: React.FC = () => {
     if (!selectedDelivery) return;
 
     try {
+      const gpsLocation = {
+        lat: selectedDelivery.route.well.lat || -38.6,
+        lng: selectedDelivery.route.well.lng || -69.1,
+      };
+
       let waitTime = 0;
       if (selectedDelivery.actualArrival) {
         const arrival = new Date(selectedDelivery.actualArrival);
@@ -462,12 +544,26 @@ const LogisticsPage: React.FC = () => {
   };
 
   const handleDownloadTraceabilityReport = (delivery: Delivery) => {
-    try {
-      generateTraceabilityPDF(delivery);
-    } catch (err: any) {
-      console.error('Error generating traceability PDF:', err);
-      alert(err.message || 'Failed to generate traceability report');
-    }
+    const report = {
+      orderNumber: delivery.orderNumber,
+      deliveryDate: new Date(delivery.createdAt).toLocaleDateString(),
+      truck: delivery.truckLicensePlate,
+      driver: delivery.driverName,
+      customer: delivery.customerName,
+      checkpoints: delivery.checkpoints,
+      gpsTrack: delivery.gpsTrack,
+      signature: delivery.signature,
+      waitTime: delivery.waitTime,
+      eta: delivery.eta,
+      actualArrival: delivery.actualArrival,
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Traceability-Report-${delivery.orderNumber}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const center = selectedDelivery
@@ -490,41 +586,32 @@ const LogisticsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.logistics.title')}
-        subtitle={
-          <>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" gutterBottom>
+            {t('modules.logistics.title')}
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
             <Badge badgeContent={activeDeliveries} color="primary" sx={{ mr: 2 }}>
               <TruckIcon />
             </Badge>
             {activeDeliveries} {t('modules.logistics.activeDeliveries')} • {deliveries.length} {t('modules.logistics.totalDeliveries')}
-          </>
-        }
-        action={
-          <>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={loadData}
-            >
-              {t('common.refresh')}
-            </Button>
-            {currentRole !== 'driver' && (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleOpenAssignDialog}
-                disabled={orders.length === 0}
-              >
-                {t('modules.logistics.assignTruck')}
-              </Button>
-            )}
-          </>
-        }
-      />
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadData}
+          >
+            {t('common.refresh')}
+          </Button>
+        </Box>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -666,11 +753,12 @@ const LogisticsPage: React.FC = () => {
                   filteredDeliveries.map((delivery) => (
                     <Card
                       key={delivery.id}
-                      className="card-hover"
                       sx={{ 
                         mb: 2, 
+                        cursor: 'pointer',
                         border: selectedDelivery?.id === delivery.id ? 2 : 1,
                         borderColor: selectedDelivery?.id === delivery.id ? 'primary.main' : 'divider',
+                        '&:hover': { bgcolor: 'action.hover' }
                       }}
                       onClick={() => setSelectedDelivery(delivery)}
                     >
@@ -679,7 +767,12 @@ const LogisticsPage: React.FC = () => {
                           <Typography variant="subtitle2" fontWeight="bold">
                             {delivery.orderNumber}
                           </Typography>
-                          <StatusChip status={delivery.status} />
+                          <Chip 
+                            label={delivery.status} 
+                            size="small" 
+                            color={getStatusColor(delivery.status) as any}
+                            icon={getStatusIcon(delivery.status)}
+                          />
                         </Box>
                         <Typography variant="body2" color="textSecondary">
                           {delivery.customerName}
@@ -710,7 +803,11 @@ const LogisticsPage: React.FC = () => {
                       <Typography variant="h6">
                         {t('modules.logistics.deliveryDetails')}: {selectedDelivery.orderNumber}
                       </Typography>
-                      <StatusChip status={selectedDelivery.status} />
+                      <Chip 
+                        label={selectedDelivery.status} 
+                        color={getStatusColor(selectedDelivery.status) as any}
+                        icon={getStatusIcon(selectedDelivery.status)}
+                      />
                     </Box>
                   </Grid>
 
@@ -800,7 +897,7 @@ const LogisticsPage: React.FC = () => {
                         </Box>
                       </Box>
                     ) : (
-                      <Alert className="animate-slide-in-up" severity="info" icon={<LocationIcon />}>
+                      <Alert severity="info" icon={<LocationIcon />}>
                         {t('modules.logistics.noCheckpoints')}
                       </Alert>
                     )}
@@ -810,21 +907,34 @@ const LogisticsPage: React.FC = () => {
                   <Grid item xs={12}>
                     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                       {selectedDelivery.status === 'assigned' && (
-                        <Button
-                          variant="contained"
-                          color="info"
-                          startIcon={<SpeedIcon />}
-                          onClick={() => handleMarkInTransit(selectedDelivery.id)}
-                        >
-                          {t('modules.logistics.markInTransit')}
-                        </Button>
+                        (() => {
+                          const hasCert = certByOrderId[selectedDelivery.orderId];
+                          return (
+                            <Tooltip title={!hasCert ? 'Waiting for QC certificate' : ''}>
+                              <span>
+                                <Button
+                                  variant="contained"
+                                  color="info"
+                                  startIcon={<SpeedIcon />}
+                                  onClick={() => handleMarkInTransit(selectedDelivery.id)}
+                                  disabled={!hasCert}
+                                >
+                                  {hasCert ? t('modules.logistics.markInTransit') : 'Pick up (waiting for QC cert)'}
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          );
+                        })()
                       )}
                       {(selectedDelivery.status === 'in_transit' || selectedDelivery.status === 'arrived') && (
                         <Button
                           variant="contained"
                           color="success"
                           startIcon={<CheckCircleIcon />}
-                          onClick={() => setOpenDeliveryConfirmDialog(true)}
+                          onClick={() => {
+                            setSignatureData({ signerName: '', signerTitle: '', signatureImage: '', photo: '' });
+                            setOpenDeliveryConfirmDialog(true);
+                          }}
                         >
                           {t('modules.logistics.confirmDelivery')}
                         </Button>
@@ -844,27 +954,27 @@ const LogisticsPage: React.FC = () => {
                   {/* Signature Section (if delivered) */}
                   {selectedDelivery.signature && (
                     <Grid item xs={12}>
-                      <Alert className="animate-slide-in-up" severity="success" icon={<CheckCircleIcon />}>
-                        <AlertTitle>{t('modules.logistics.deliveryConfirmed')}</AlertTitle>
+                      <Alert severity="success" icon={<CheckCircleIcon />}>
+                        <AlertTitle>Delivery Confirmed with Electronic Signature</AlertTitle>
                         <Grid container spacing={2} sx={{ mt: 1 }}>
                           <Grid item xs={12} md={6}>
                             <Typography variant="body2">
-                              <strong>{t('modules.logistics.signedBy')}</strong> {selectedDelivery.signature.signerName}
+                              <strong>Signed by:</strong> {selectedDelivery.signature.signerName}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>{t('modules.logistics.signerTitleLabel')}</strong> {selectedDelivery.signature.signerTitle}
+                              <strong>Title:</strong> {selectedDelivery.signature.signerTitle}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>{t('modules.logistics.date')}</strong> {new Date(selectedDelivery.signature.timestamp).toLocaleString()}
+                              <strong>Date:</strong> {new Date(selectedDelivery.signature.timestamp).toLocaleString()}
                             </Typography>
                             <Typography variant="body2">
-                              <strong>{t('modules.logistics.location')}</strong> {selectedDelivery.signature.location?.lat?.toFixed(4)}, {selectedDelivery.signature.location?.lng?.toFixed(4)}
+                              <strong>Location:</strong> {selectedDelivery.signature.location?.lat?.toFixed(4)}, {selectedDelivery.signature.location?.lng?.toFixed(4)}
                             </Typography>
                           </Grid>
                           {selectedDelivery.signature.signatureImage && (
                             <Grid item xs={12} md={6}>
                               <Typography variant="body2" gutterBottom>
-                                <strong>{t('modules.logistics.signature')}</strong>
+                                <strong>Signature:</strong>
                               </Typography>
                               <Box sx={{ border: '1px solid #ddd', borderRadius: 1, p: 1, bgcolor: 'white' }}>
                                 <img 
@@ -900,108 +1010,8 @@ const LogisticsPage: React.FC = () => {
         </Grid>
       )}
 
-      {/* Assign Delivery Dialog */}
-      <Dialog className="animate-fade-in" open={openAssignDialog} onClose={() => setOpenAssignDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {t('modules.logistics.assignTruck')}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label={t('modules.logistics.order')}
-                value={selectedOrder?.id || ''}
-                onChange={(e) => {
-                  const order = orders.find(o => o.id === e.target.value);
-                  setSelectedOrder(order || null);
-                }}
-                required
-              >
-                {orders.map((order) => (
-                  <MenuItem key={order.id} value={order.id}>
-                    {order.orderNumber} - {order.customerName} ({order.deliveryLocation})
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            {selectedOrder && (
-              <Grid item xs={12}>
-                <Alert className="animate-slide-in-up" severity="info">
-                  <Typography variant="body2">
-                    <strong>Customer:</strong> {selectedOrder.customerName}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Delivery Location:</strong> {selectedOrder.deliveryLocation}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Total Amount:</strong> ${selectedOrder.totalAmount.toLocaleString()}
-                  </Typography>
-                </Alert>
-              </Grid>
-            )}
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label={t('modules.logistics.truck')}
-                value={selectedTruckId}
-                onChange={(e) => setSelectedTruckId(e.target.value)}
-                required
-                helperText={availableTrucks.length === 0 ? 'No available trucks' : `${availableTrucks.length} trucks available`}
-              >
-                {availableTrucks.length === 0 ? (
-                  <MenuItem disabled>No available trucks</MenuItem>
-                ) : (
-                  availableTrucks.map((truck) => (
-                    <MenuItem key={truck.id} value={truck.id}>
-                      🚚 {truck.licensePlate} - {truck.capacity} tons ({truck.type === 'old' ? 'Old' : 'New'})
-                    </MenuItem>
-                  ))
-                )}
-              </TextField>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                select
-                fullWidth
-                label={t('modules.logistics.driver')}
-                value={selectedDriverId}
-                onChange={(e) => setSelectedDriverId(e.target.value)}
-                required
-                helperText={availableDrivers.length === 0 ? 'No available drivers' : `${availableDrivers.length} drivers available`}
-              >
-                {availableDrivers.length === 0 ? (
-                  <MenuItem disabled>No available drivers</MenuItem>
-                ) : (
-                  availableDrivers.map((driver) => (
-                    <MenuItem key={driver.id} value={driver.id}>
-                      👤 {driver.name} - {driver.hoursWorked}/{driver.hoursLimit} hours
-                    </MenuItem>
-                  ))
-                )}
-              </TextField>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenAssignDialog(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button 
-            onClick={handleCreateDelivery} 
-            variant="contained"
-            disabled={!selectedOrder || !selectedTruckId || !selectedDriverId}
-          >
-            {t('common.save')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Delivery Confirmation Dialog */}
       <Dialog 
-        className="animate-fade-in"
         open={openDeliveryConfirmDialog} 
         onClose={() => setOpenDeliveryConfirmDialog(false)} 
         maxWidth="md" 
@@ -1089,38 +1099,34 @@ const LogisticsPage: React.FC = () => {
                       <Typography variant="caption" display="block" gutterBottom color="textSecondary" sx={{ textAlign: 'center' }}>
                         ✍️ Draw your signature below using your mouse or touch screen
                       </Typography>
-                      <canvas
-                        ref={(canvas) => {
-                          if (canvas && !canvasRef.current) {
-                            canvas.width = canvas.offsetWidth;
-                            canvas.height = 150;
-                            canvasRef.current = canvas;
-                            const ctx = canvas.getContext('2d');
-                            if (ctx) {
-                              ctx.strokeStyle = '#000';
-                              ctx.lineWidth = 2;
-                              ctx.lineCap = 'round';
-                            }
-                          }
-                        }}
-                        onMouseDown={startDrawing}
-                        onMouseMove={draw}
-                        onMouseUp={stopDrawing}
-                        onMouseLeave={stopDrawing}
-                        style={{
-                          width: '100%',
-                          height: 150,
-                          border: '1px solid #ddd',
-                          borderRadius: 4,
-                          cursor: 'crosshair',
-                          backgroundColor: '#fff',
-                        }}
-                      />
+                      <Box ref={containerRef} sx={{ width: '100%' }}>
+                        <canvas
+                          ref={canvasRef}
+                          onMouseDown={handleMouseDown}
+                          onMouseMove={handleMouseMove}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                          onTouchStart={handleTouchStart}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={handleTouchEnd}
+                          onTouchCancel={handleTouchEnd}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            maxWidth: 600,
+                            height: 150,
+                            border: '1px solid #ddd',
+                            borderRadius: 4,
+                            cursor: 'crosshair',
+                            backgroundColor: '#fff',
+                            touchAction: 'none',
+                          }}
+                        />
+                      </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
                         <Button 
                           size="small" 
                           onClick={clearSignature}
-                          disabled={!signatureData.signatureImage}
                         >
                           {t('modules.logistics.clearSignature')}
                         </Button>
@@ -1204,7 +1210,7 @@ const LogisticsPage: React.FC = () => {
 
               {/* Requirements Alert */}
               <Grid item xs={12}>
-                <Alert className="animate-slide-in-up" severity="info" icon={<CheckCircleIcon />}>
+                <Alert severity="info" icon={<CheckCircleIcon />}>
                   <AlertTitle>Signature Requirements (RN-004)</AlertTitle>
                   <Box component="ul" sx={{ m: 0, pl: 2 }}>
                     <li>

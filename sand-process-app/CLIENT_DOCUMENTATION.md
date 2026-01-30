@@ -1,11 +1,5 @@
 # Sand Process Management System - Prototype Documentation
 
-## Quick Access
-
-**🌐 Access the Prototype**: [https://sand-process.vercel.app/](https://sand-process.vercel.app/)
-
----
-
 ## Overview
 
 The Sand Process Management System is a comprehensive web-based platform designed to manage the complete lifecycle of sand production, quality control, logistics, and customer relations for the oil & gas industry. This prototype demonstrates all core workflows from order creation through delivery and invoicing.

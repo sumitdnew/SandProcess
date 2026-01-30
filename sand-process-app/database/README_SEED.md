@@ -1,9 +1,36 @@
 # Database Seed Data
 
-## Quick Start
+## Quick Start (run in this order)
 
-1. **First, run the schema** (`schema.sql`) in Supabase SQL Editor
-2. **Then, run the seed data** (`seed_data.sql`) to populate with sample data
+Run each script in the **Supabase SQL Editor** in this order:
+
+| Order | File | Purpose |
+|-------|------|---------|
+| 1 | `schema.sql` | Base tables (customers, products, orders, trucks, drivers, deliveries, etc.) |
+| 2 | `schema_updates.sql` | Extra delivery fields (signature, checkpoints, gps_track, photos) for Logistics |
+| 3 | `seed_data.sql` | Sample customers, products, MSAs, trucks, drivers, orders, QC tests |
+| 4 | `schema_assignment_requests.sql` | Dispatcher assignment approval workflow |
+| 5 | `schema_rules.sql` | Recommendation rules (Rules screen) |
+| 6 | `schema_redirect_requests.sql` | Truck redirect approvals |
+| 7 | `schema_redirect_requests_2level.sql` | Two-level approval (Jefatura → Gerencia) |
+| 8 | `schema_redirect_requests_rls.sql` | RLS so OM can see redirect requests |
+| 9 | `schema_assignment_requests_rls.sql` | RLS so OM can see assignment requests |
+
+**Summary:** Run `schema.sql` → `schema_updates.sql` → `seed_data.sql` → `schema_assignment_requests.sql` → `schema_rules.sql` → `schema_redirect_requests.sql` → `schema_redirect_requests_2level.sql` → `schema_redirect_requests_rls.sql` → `schema_assignment_requests_rls.sql`.
+
+### Dispatcher → Operations Manager approvals
+
+- **Dispatcher:** Pick an unassigned order → choose a recommendation (On-Site, Quarry, or Redirect) → **Request approval**.
+- **Operations Manager:** Open **Approvals** → see pending requests → **Approve** or **Reject**.
+- Run **`schema_assignment_requests_rls.sql`** and **`schema_redirect_requests_rls.sql`** in Supabase SQL Editor so OM can see pending requests.
+
+### Prototype: ensure trucks available
+
+For dispatcher assignment testing, run **`seed_prototype_trucks.sql`** (after seed data). It:
+
+- Inserts extra trucks (80t, 100t) if missing, and resets trucks to `available`
+- Sets all drivers to `available`
+- Optional: uncomment the QC block to mark an order as passed so it can be dispatched
 
 ## What's Included
 

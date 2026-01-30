@@ -7,10 +7,12 @@ import {
 export const mockUsers: User[] = [
   { id: '1', name: 'Admin User', email: 'admin@sandprocess.com', role: 'admin' },
   { id: '2', name: 'Juan Pérez', email: 'juan.perez@sandprocess.com', role: 'operations_manager' },
+  { id: '7', name: 'Laura Fernández', email: 'laura.fernandez@sandprocess.com', role: 'jefatura' },
   { id: '3', name: 'María González', email: 'maria.gonzalez@sandprocess.com', role: 'dispatcher' },
   { id: '4', name: 'Carlos Rodríguez', email: 'carlos.rodriguez@sandprocess.com', role: 'qc_technician' },
   { id: '5', name: 'Ana Martínez', email: 'ana.martinez@sandprocess.com', role: 'accounting_manager' },
-  { id: '6', name: 'Luis Fernández', email: 'luis.fernandez@sandprocess.com', role: 'sales_rep' },
+  { id: '6', name: 'Elena Vargas', email: 'elena.vargas@sandprocess.com', role: 'inventory_manager' },
+  { id: '8', name: 'Pedro Sánchez', email: 'pedro.sanchez@sandprocess.com', role: 'driver' },
 ];
 
 // Mock Customers
@@ -406,51 +408,11 @@ export const mockInvoices: Invoice[] = [
   },
 ];
 
-// Mock Inventory (deprecated - use inventoryApi.getAll() instead)
+// Mock Inventory
 export const mockInventory: Inventory[] = [
-  { 
-    id: 'mock-1', 
-    productId: '1', 
-    productName: 'Frac Sand 30/50', 
-    location: 'quarry', 
-    quantity: 500, 
-    reserved: 150, 
-    available: 350,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: 'mock-2', 
-    productId: '1', 
-    productName: 'Frac Sand 30/50', 
-    location: 'buffer', 
-    quantity: 200, 
-    reserved: 0, 
-    available: 200,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: 'mock-3', 
-    productId: '2', 
-    productName: 'Frac Sand 40/70', 
-    location: 'quarry', 
-    quantity: 300, 
-    reserved: 75, 
-    available: 225,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  { 
-    id: 'mock-4', 
-    productId: '2', 
-    productName: 'Frac Sand 40/70', 
-    location: 'buffer', 
-    quantity: 150, 
-    reserved: 0, 
-    available: 150,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
+  { productId: '1', productName: 'Frac Sand 30/50', location: 'quarry', quantity: 500, reserved: 150, available: 350 },
+  { productId: '1', productName: 'Frac Sand 30/50', location: 'buffer', quantity: 200, reserved: 0, available: 200 },
+  { productId: '2', productName: 'Frac Sand 40/70', location: 'quarry', quantity: 300, reserved: 75, available: 225 },
+  { productId: '2', productName: 'Frac Sand 40/70', location: 'buffer', quantity: 150, reserved: 0, available: 150 },
 ];
 

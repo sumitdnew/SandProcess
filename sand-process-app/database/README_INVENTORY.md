@@ -1,100 +1,17 @@
-# Inventory and Settings Database Setup
+# Inventory & produce-to-inventory
 
-## Overview
+Stock levels and "Produce to inventory" rely on:
 
-This document describes the inventory and settings tables added to the Sand Process Management System database.
+1. **`schema_inventory_and_lots.sql`**  
+   Run this in the Supabase SQL Editor (after the main `schema.sql`). It creates:
+   - `inventory_balance` (site_id, product_id, quantity)
+   - `qc_tests.quantity` and `qc_tests.site_id` for produce-to-inventory lots
 
-## Setup Instructions
+2. **Flow**
+   - **Produce to inventory** (Production page): creates a QC test (lot, product, quantity, site). Inventory does **not** increase yet.
+   - **Quality page**: run the test and **approve** it. Only then is the quantity added to `inventory_balance`.
+   - **Inventory** (Inventory Manager, Dispatcher): reads from `inventory_balance`.
 
-1. **Run the schema file**:
-   ```sql
-   -- In Supabase SQL Editor, run:
-   schema_inventory_and_settings.sql
-   ```
-
-2. **Run the seed data file**:
-   ```sql
-   -- In Supabase SQL Editor, run:
-   seed_inventory_and_settings.sql
-   ```
-
-## Tables
-
-### Inventory Table
-
-Stores product inventory by location.
-
-**Columns:**
-- `id` - UUID primary key
-- `product_id` - Foreign key to products table
-- `location` - Location name (e.g., "Cantera Principal", "Buffer Zone A")
-- `quantity` - Total quantity in tons (DECIMAL)
-- `reserved` - Reserved quantity (calculated from orders) - Not stored, calculated dynamically
-- `available` - Available quantity (calculated) - Not stored, calculated as quantity - reserved
-
-**Unique Constraint:** `(product_id, location)` - ensures one record per product per location
-
-### Settings Table
-
-Stores application configuration values.
-
-**Columns:**
-- `id` - UUID primary key
-- `key` - Setting key (unique, e.g., "production_capacity")
-- `value` - JSONB value (can store any JSON structure)
-- `description` - Human-readable description
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
-
-**Predefined Settings:**
-- `production_capacity` - Production capacity percentage (default: 75)
-- `default_purity_min` - Default minimum purity for QC (default: 95%)
-- `default_roundness_min` - Default minimum roundness (default: 0.8)
-- `default_moisture_max` - Default maximum moisture (default: 1.0%)
-- `company_*` - Various company information for PDFs
-
-## API Usage
-
-### Inventory API
-
-```typescript
-import { inventoryApi } from '../services/api';
-
-// Get all inventory
-const inventory = await inventoryApi.getAll();
-
-// Get inventory by location
-const locationInventory = await inventoryApi.getByLocation('Cantera Principal');
-
-// Update inventory quantity
-await inventoryApi.update(inventoryId, newQuantity);
-```
-
-### Settings API
-
-```typescript
-import { settingsApi } from '../services/api';
-
-// Get all settings
-const settings = await settingsApi.getAll();
-
-// Get setting by key
-const capacity = await settingsApi.getByKey('production_capacity');
-
-// Get setting value (with default)
-const capacityValue = await settingsApi.getValue<{value: number}>(
-  'production_capacity', 
-  {value: 75}
-);
-
-// Update setting
-await settingsApi.update('production_capacity', {value: 80});
-```
-
-## Notes
-
-- **Reserved quantities** are calculated dynamically from pending/confirmed/ready orders
-- **Available quantities** are calculated as `quantity - reserved`
-- Inventory API automatically calculates reserved quantities when fetching data
-- Settings values are stored as JSONB, allowing flexible data structures
-
+If inventory never shows up:
+- Ensure `schema_inventory_and_lots.sql` has been run.
+- Produce to inventory → go to Quality → run test → **approve**. Stock updates only after approval.

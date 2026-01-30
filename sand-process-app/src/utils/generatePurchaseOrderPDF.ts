@@ -1,24 +1,20 @@
 import jsPDF from 'jspdf';
-import { ordersApi } from '../services/api';
+import { Order } from '../types';
 
-// Company information constant
-const COMPANY_INFO = {
-  name: 'Sand Process Management Co.',
-  address: 'Vaca Muerta Industrial Park, Neuquén, Argentina',
-  phone: '+54 299 XXX-XXXX',
-  email: 'orders@sandprocess.com.ar',
-  taxId: 'CUIT: 30-XXXXXXXX-X',
-  website: 'www.sandprocess.com.ar',
-};
+interface POData {
+  order: Order;
+  companyInfo: {
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    taxId: string;
+    website?: string;
+  };
+}
 
-const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
-  // Fetch order data from Supabase
-  const order = await ordersApi.getById(orderId);
-  
-  if (!order) {
-    throw new Error('Order not found');
-  }
-
+export const generatePurchaseOrderPDF = (data: POData) => {
+  const { order, companyInfo } = data;
   const doc = new jsPDF();
   
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -34,12 +30,12 @@ const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text(COMPANY_INFO.name, margin, 20);
+  doc.text(companyInfo.name, margin, 20);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(COMPANY_INFO.address, margin, 28);
-  doc.text(`Phone: ${COMPANY_INFO.phone} | Email: ${COMPANY_INFO.email}`, margin, 34);
+  doc.text(companyInfo.address, margin, 28);
+  doc.text(`Phone: ${companyInfo.phone} | Email: ${companyInfo.email}`, margin, 34);
 
   // PO Title
   doc.setFontSize(24);
@@ -80,15 +76,15 @@ const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(COMPANY_INFO.name, leftColumn, yPosition);
+  doc.text(companyInfo.name, leftColumn, yPosition);
   yPosition += 5;
-  doc.text(COMPANY_INFO.address, leftColumn, yPosition);
+  doc.text(companyInfo.address, leftColumn, yPosition);
   yPosition += 5;
-  doc.text(`Tax ID: ${COMPANY_INFO.taxId}`, leftColumn, yPosition);
+  doc.text(`Tax ID: ${companyInfo.taxId}`, leftColumn, yPosition);
   yPosition += 5;
-  doc.text(`Phone: ${COMPANY_INFO.phone}`, leftColumn, yPosition);
+  doc.text(`Phone: ${companyInfo.phone}`, leftColumn, yPosition);
   yPosition += 5;
-  doc.text(`Email: ${COMPANY_INFO.email}`, leftColumn, yPosition);
+  doc.text(`Email: ${companyInfo.email}`, leftColumn, yPosition);
 
   // Customer (Bill To)
   yPosition = yPosition - 25; // Reset to same height as vendor
@@ -103,8 +99,8 @@ const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
   yPosition += 5;
   doc.text(order.deliveryLocation, rightColumn, yPosition);
   yPosition += 5;
-  if (order.msaNumber) {
-    doc.text(`MSA: ${order.msaNumber}`, rightColumn, yPosition);
+  if (order.msaId) {
+    doc.text(`MSA: ${order.msaId}`, rightColumn, yPosition);
     yPosition += 5;
   }
 
@@ -223,10 +219,10 @@ const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const terms = [
-    `• Payment Terms: ${order.paymentTerms || (order.msaId ? 'As per MSA' : 'Net 30 days')}`,
+    '• Payment Terms: Net 30 days',
     '• All products are subject to quality inspection upon delivery',
     '• Customer must report any quality issues within 48 hours of delivery',
-    `• This Purchase Order is issued under MSA ${order.msaNumber || 'N/A'}`,
+    `• This Purchase Order is issued under MSA ${order.msaId || 'N/A'}`,
     '• Delivery times are estimates and subject to weather and road conditions',
     '• Risk of loss transfers to Customer upon delivery confirmation',
   ];
@@ -287,9 +283,9 @@ const generatePurchaseOrderPDF = async (orderId: string): Promise<void> => {
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
   doc.text(`PO ${order.orderNumber} | Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPosition, { align: 'center' });
-  if (COMPANY_INFO.website) {
+  if (companyInfo.website) {
     yPosition += 4;
-    doc.text(COMPANY_INFO.website, pageWidth / 2, yPosition, { align: 'center' });
+    doc.text(companyInfo.website, pageWidth / 2, yPosition, { align: 'center' });
   }
 
   // Download

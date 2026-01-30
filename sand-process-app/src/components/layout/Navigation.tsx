@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import {
+  Box,
   List,
   ListItem,
   ListItemButton,
@@ -21,6 +22,10 @@ import FactoryIcon from '@mui/icons-material/Factory';
 import PersonIcon from '@mui/icons-material/Person';
 import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
+import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
+import HowToReg from '@mui/icons-material/HowToReg';
+import Rule from '@mui/icons-material/Rule';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 
 interface NavItem {
   path: string;
@@ -40,49 +45,73 @@ const Navigation: React.FC = () => {
       path: '/',
       label: t('common.dashboard'),
       icon: <DashboardIcon />,
-      roles: ['admin', 'operations_manager', 'dispatcher', 'production_manager', 'sales_rep', 'customer_service', 'accounting_manager'],
+      roles: ['admin', 'dispatcher', 'accounting_manager', 'inventory_manager'],
+    },
+    {
+      path: '/tasks',
+      label: 'Tasks',
+      icon: <AssignmentIcon />,
+      roles: ['admin', 'dispatcher', 'driver', 'qc_technician', 'operations_manager', 'jefatura', 'inventory_manager', 'accounting_manager'],
     },
     {
       path: '/orders',
       label: t('common.orders'),
       icon: <ShoppingCartIcon />,
-      roles: ['admin', 'operations_manager', 'sales_rep', 'customer_service'],
+      roles: ['admin', 'customer_user'],
     },
     {
       path: '/logistics',
       label: t('common.logistics'),
       icon: <LocalShippingIcon />,
-      roles: ['admin', 'operations_manager', 'dispatcher', 'customer_service'],
+      roles: ['admin', 'dispatcher', 'driver', 'customer_user'],
+    },
+    {
+      path: '/dispatcher',
+      label: 'Dispatcher',
+      icon: <AssignmentTurnedInIcon />,
+      roles: ['admin', 'dispatcher'],
+    },
+    {
+      path: '/approvals',
+      label: t('common.approvals'),
+      icon: <HowToReg />,
+      roles: ['admin', 'operations_manager', 'jefatura'],
+    },
+    {
+      path: '/rules',
+      label: 'Rules',
+      icon: <Rule />,
+      roles: ['admin', 'operations_manager', 'jefatura'],
     },
     {
       path: '/quality',
       label: t('common.quality'),
       icon: <ScienceIcon />,
-      roles: ['admin', 'operations_manager', 'production_manager', 'qc_technician'],
+      roles: ['admin', 'qc_technician'],
     },
     {
       path: '/billing',
       label: t('common.billing'),
       icon: <ReceiptIcon />,
-      roles: ['admin', 'operations_manager', 'accounting_manager', 'customer_service'],
+      roles: ['admin', 'accounting_manager'],
     },
     {
       path: '/inventory',
       label: t('common.inventory'),
       icon: <InventoryIcon />,
-      roles: ['admin', 'operations_manager', 'production_manager'],
+      roles: ['admin', 'inventory_manager', 'dispatcher'],
     },
     {
       path: '/fleet',
       label: t('common.fleet'),
       icon: <DirectionsCarIcon />,
-      roles: ['admin', 'operations_manager', 'dispatcher'],
+      roles: ['admin', 'dispatcher'],
     },
     {
       path: '/production',
       label: t('common.production'),
       icon: <FactoryIcon />,
-      roles: ['admin', 'operations_manager', 'production_manager'],
+      roles: ['admin', 'inventory_manager'],
     },
     {
       path: '/customer-portal',
@@ -94,13 +123,13 @@ const Navigation: React.FC = () => {
       path: '/msas',
       label: 'MSAs',
       icon: <DescriptionIcon />,
-      roles: ['admin', 'operations_manager', 'sales_rep'],
+      roles: ['admin'],
     },
     {
       path: '/customers',
       label: 'Customers',
       icon: <BusinessIcon />,
-      roles: ['admin', 'operations_manager', 'sales_rep', 'customer_service'],
+      roles: ['admin'],
     },
   ];
 

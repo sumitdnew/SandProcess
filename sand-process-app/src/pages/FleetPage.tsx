@@ -23,9 +23,7 @@ import {
   Alert,
 } from '@mui/material';
 import { trucksApi, driversApi } from '../services/api';
-import { Truck, Driver } from '../types';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
+import { Truck, Driver, TruckStatus } from '../types';
 
 const FleetPage: React.FC = () => {
   const { t } = useTranslation();
@@ -38,7 +36,6 @@ const FleetPage: React.FC = () => {
   const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadData();
   }, []);
 
@@ -57,6 +54,30 @@ const FleetPage: React.FC = () => {
       setError(err.message || 'Failed to load fleet data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: TruckStatus) => {
+    const colors: Record<TruckStatus, string> = {
+      available: 'success',
+      assigned: 'info',
+      in_transit: 'warning',
+      loading: 'warning',
+      delivering: 'warning',
+      returning: 'info',
+      maintenance: 'error',
+      broken_down: 'error',
+      stuck: 'error',
+    };
+    return colors[status] || 'default';
+  };
+
+  const handleMarkBreakdown = async (truck: Truck, status: 'broken_down' | 'stuck') => {
+    try {
+      await trucksApi.updateStatus(truck.id, status);
+      await loadData();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to update truck status.');
     }
   };
 
@@ -80,10 +101,12 @@ const FleetPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader title={t('modules.fleet.title')} />
+      <Typography variant="h4" gutterBottom>
+        {t('modules.fleet.title')}
+      </Typography>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -113,12 +136,37 @@ const FleetPage: React.FC = () => {
                     <TableCell>{truck.capacity} tons</TableCell>
                     <TableCell>{truck.type === 'old' ? 'Old (25-26t)' : 'New (50-55t)'}</TableCell>
                     <TableCell>
-                      <StatusChip status={truck.status} />
+                      <Chip
+                        label={t(`truckStatus.${truck.status}`)}
+                        color={getStatusColor(truck.status) as any}
+                        size="small"
+                      />
                     </TableCell>
                     <TableCell>
-                      <Button size="small" onClick={() => handleViewTruck(truck)}>
+                      <Button size="small" onClick={() => handleViewTruck(truck)} sx={{ mr: 1 }}>
                         {t('common.view')}
                       </Button>
+                      {(truck.status === 'assigned' || truck.status === 'in_transit' || truck.status === 'delivering') && (
+                        <>
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => handleMarkBreakdown(truck, 'broken_down')}
+                          >
+                            Report broken down
+                          </Button>
+                          <Button
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            onClick={() => handleMarkBreakdown(truck, 'stuck')}
+                            sx={{ ml: 0.5 }}
+                          >
+                            Mark stuck
+                          </Button>
+                        </>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -163,7 +211,7 @@ const FleetPage: React.FC = () => {
         )}
       </Paper>
 
-      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           Truck: {selectedTruck?.licensePlate}
         </DialogTitle>
@@ -181,7 +229,12 @@ const FleetPage: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <Typography><strong>{t('common.status')}:</strong>
-                  <StatusChip status={selectedTruck.status} sx={{ ml: 1 }} />
+                  <Chip
+                    label={t(`truckStatus.${selectedTruck.status}`)}
+                    color={getStatusColor(selectedTruck.status) as any}
+                    size="small"
+                    sx={{ ml: 1 }}
+                  />
                 </Typography>
               </Grid>
               {selectedTruck.driverName && (

@@ -1,13 +1,12 @@
 export type UserRole = 
   | 'admin'
   | 'operations_manager'
+  | 'jefatura'
   | 'dispatcher'
   | 'driver'
-  | 'production_manager'
   | 'qc_technician'
-  | 'sales_rep'
-  | 'customer_service'
   | 'accounting_manager'
+  | 'inventory_manager'
   | 'customer_user';
 
 export type OrderStatus = 
@@ -28,7 +27,9 @@ export type TruckStatus =
   | 'loading'
   | 'delivering'
   | 'returning'
-  | 'maintenance';
+  | 'maintenance'
+  | 'broken_down'
+  | 'stuck';
 
 export type PaymentStatus = 
   | 'pending'
@@ -50,6 +51,16 @@ export interface User {
   avatar?: string;
 }
 
+export interface TaskItem {
+  id: string;
+  type: string;
+  title: string;
+  subtitle?: string;
+  count: number;
+  link: string;
+  role: UserRole;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -63,7 +74,6 @@ export interface Customer {
 
 export interface MSA {
   id: string;
-  msaNumber?: string; // Generated from id for display
   customerId: string;
   customerName: string;
   startDate: string;
@@ -87,10 +97,6 @@ export interface Order {
   customerId: string;
   customerName: string;
   msaId?: string;
-  msaNumber?: string;
-  paymentTerms?: string;
-  /** Optional URL to an uploaded customer Purchase Order document */
-  poDocumentUrl?: string;
   products: Array<{
     productId: string;
     productName: string;
@@ -104,6 +110,147 @@ export interface Order {
   totalAmount: number;
   createdAt: string;
   notes?: string;
+  /** Dispatcher: priority (optional, derived or from rules) */
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  /** Dispatcher: requested delivery window (e.g. "8:00–12:00") */
+  requestedWindow?: string;
+  /** Dispatcher: assigned source id (warehouse or truck) */
+  assignedSourceId?: string;
+  /** Dispatcher: assigned truck id */
+  assignedTruckId?: string;
+}
+
+export type RecommendationSourceType = 'QUARRY_WAREHOUSE' | 'NEAR_WELL_WAREHOUSE' | 'TRUCK_IN_TRANSIT' | 'PRODUCE';
+
+export interface RecommendationOption {
+  id: string;
+  rank: number;
+  sourceType: RecommendationSourceType;
+  sourceId: string;
+  sourceLabel: string;
+  truckId?: string;
+  truckLabel?: string;
+  eta: string;
+  /** ETA in minutes for display */
+  etaMinutes?: number;
+  distanceKm?: number;
+  estimatedCost?: number;
+  onTimeProbability?: number;
+  inventoryImpact?: string;
+  reasonText: string;
+  /** Redirect: from order (when re-route) */
+  isRedirect?: boolean;
+  fromOrderId?: string;
+  fromOrderNumber?: string;
+  impactOnOriginalOrder?: string;
+  /** Inventory available (tons); N/A for redirect */
+  inventoryAvailable?: number | 'N/A';
+  /** Truck labels that can fulfill this option */
+  trucksAvailable?: string[];
+  /** Can we fulfill from this option? */
+  canFulfill?: boolean;
+  /** Why we cannot fulfill (when canFulfill is false, warehouse options only) */
+  cannotFulfillReason?: string;
+  /** Option 3 placeholder when no redirect possible */
+  redirectUnavailable?: boolean;
+}
+
+export type InventoryRecommendationAction = 'increase' | 'decrease' | 'maintain';
+
+export interface InventoryRecommendation {
+  id: string;
+  siteId: string;
+  siteName: string;
+  productId: string;
+  productName: string;
+  currentLevel: number;
+  reserved: number;
+  available: number;
+  suggestedMin: number;
+  suggestedMax: number;
+  action: InventoryRecommendationAction;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface AssignmentPayload {
+  orderId: string;
+  sourceType: RecommendationSourceType;
+  sourceId: string;
+  truckId?: string;
+  reason?: string;
+  /** Redirect: order currently assigned to the truck (from) */
+  fromOrderId?: string;
+}
+
+export type AssignmentRequestStatus = 'pending_approval' | 'approved' | 'rejected';
+
+export interface AssignmentRequest {
+  id: string;
+  orderId: string;
+  orderNumber?: string;
+  customerName?: string;
+  sourceType: RecommendationSourceType;
+  sourceId: string;
+  sourceLabel?: string;
+  truckId?: string | null;
+  truckLabel?: string | null;
+  reason?: string | null;
+  status: AssignmentRequestStatus;
+  requestedBy: string;
+  requestedByName?: string;
+  requestedAt: string;
+  approvedBy?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: string | null;
+  rejectionReason?: string | null;
+}
+
+export type RuleConditionField = 'order_size' | 'urgency' | 'customer' | 'region' | 'product';
+export type RuleConditionOp = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'in';
+export type RuleActionType = 'prefer_warehouse' | 'prefer_quarry' | 'allow_redirect' | 'max_delay_min' | 'use_safety_stock_if_urgent' | 'optimization';
+
+export interface RuleCondition {
+  field: RuleConditionField;
+  op: RuleConditionOp;
+  value: string | number | string[];
+}
+
+export interface Rule {
+  id: string;
+  name: string;
+  condition: RuleCondition;
+  action: { type: RuleActionType; value?: string | number };
+  priority: number;
+  active: boolean;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type RedirectRequestStatus = 'pending_jefatura' | 'pending_gerencia' | 'pending_approval' | 'approved' | 'rejected';
+
+export interface RedirectRequest {
+  id: string;
+  fromOrderId: string;
+  fromOrderNumber?: string;
+  toOrderId: string;
+  toOrderNumber?: string;
+  truckId: string;
+  truckLabel?: string;
+  reason?: string | null;
+  impactOnOriginalOrder?: string | null;
+  status: RedirectRequestStatus;
+  requestedBy: string;
+  requestedByName?: string | null;
+  requestedAt: string;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  approvedByJefatura?: string | null;
+  approvedAtJefatura?: string | null;
+  approvedByGerencia?: string | null;
+  approvedAtGerencia?: string | null;
+  rejectionReason?: string | null;
 }
 
 export interface Truck {
@@ -193,59 +340,16 @@ export interface QCTest {
   orderNumber?: string;
   productId: string;
   productName: string;
+  quantity?: number;
+  siteId?: string;
   status: QCStatus;
   testDate?: string;
   createdAt?: string;
-  /**
-   * Detailed QC results stored as JSONB in the database.
-   * Simple fields (meshSize, purity, roundness, moisture) are always present
-   * for new tests, while extended fields are optional.
-   */
   results?: {
-    meshSize: { passed: boolean; value: string; required?: string };
-    purity: { passed: boolean; value: number; minRequired?: number };
-    roundness: { passed: boolean; value: number; minRequired?: number };
-    moisture: { passed: boolean; value: number; maxRequired?: number };
-    /**
-     * Optional extended results for comprehensive certificate of analysis.
-     */
-    sieveAnalysis?: {
-      mesh20?: { retained: number; spec: string; passed: boolean };
-      mesh30?: { retained: number; spec: string; passed: boolean };
-      mesh40?: { retained: number; spec: string; passed: boolean };
-      mesh50?: { retained: number; spec: string; passed: boolean };
-      mesh70?: { retained: number; spec: string; passed: boolean };
-      mesh100?: { retained: number; spec: string; passed: boolean };
-      pan?: { retained: number; spec: string; passed: boolean };
-    };
-    bulkDensity?: {
-      value: number;
-      spec: string;
-      passed: boolean;
-    };
-    crushResistance?: {
-      pressurePsi: number;
-      finesPercent: number;
-      spec: string;
-      passed: boolean;
-    };
-    acidSolubility?: {
-      hclPercent: number;
-      hfPercent: number;
-      totalPercent: number;
-      spec: string;
-      passed: boolean;
-    };
-    turbidity?: {
-      ntu: number;
-      spec: string;
-      passed: boolean;
-    };
-    moistureDetailed?: {
-      percent: number;
-      spec: string;
-      passed: boolean;
-    };
+    meshSize: { passed: boolean; value: string };
+    purity: { passed: boolean; value: number };
+    roundness: { passed: boolean; value: number };
+    moisture: { passed: boolean; value: number };
   };
   certificateId?: string;
   technicianId?: string;
@@ -304,24 +408,12 @@ export interface Invoice {
 }
 
 export interface Inventory {
-  id: string;
   productId: string;
-  productName?: string;
-  location: string;
+  productName: string;
+  location: 'quarry' | 'buffer' | 'in_transit';
   quantity: number; // tons
-  reserved: number; // tons (calculated)
-  available: number; // tons (calculated)
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Setting {
-  id: string;
-  key: string;
-  value: any; // JSONB - can be any value
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
+  reserved: number; // tons
+  available: number; // tons
 }
 
 export interface Geofence {

@@ -12,10 +12,12 @@
     "fleet": "Gestión de Flota",
     "production": "Producción",
     "customerPortal": "Portal del Cliente",
+    "approvals": "Aprobaciones",
     "save": "Guardar",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "edit": "Editar",
+    "view": "Ver",
     "create": "Crear",
     "search": "Buscar",
     "filter": "Filtrar",
@@ -32,90 +34,17 @@
     "yes": "Sí",
     "no": "No",
     "required": "Requerido",
-    "optional": "Opcional",
-    "view": "Ver",
-    "viewAll": "Ver Todo",
-    "lastUpdated": "Última actualización",
-    "justNow": "Ahora mismo",
-    "minutesAgo": "hace {{minutes}}m",
-    "hoursAgo": "hace {{hours}}h",
-    "daysAgo": "hace {{days}}d"
-  },
-  "dashboard": {
-    "totalRevenue": "Ingresos Totales",
-    "totalOrders": "Pedidos Totales",
-    "activeDeliveries": "Entregas Activas",
-    "qcPassRate": "Tasa de Aprobación QC",
-    "revenueTrend": "Tendencia de Ingresos",
-    "last6Months": "Últimos 6 meses",
-    "revenue": "Ingresos",
-    "orderStatus": "Estado de Pedidos",
-    "productionVolume": "Volumen de Producción (Toneladas)",
-    "top5Products": "Top 5 Productos",
-    "quantityTons": "Cantidad (toneladas)",
-    "recentActivity": "Actividad Reciente",
-    "quickStats": "Estadísticas Rápidas",
-    "pendingInvoices": "Facturas Pendientes",
-    "overdueInvoices": "Facturas Vencidas",
-    "productionCapacity": "Capacidad de Producción",
-    "qcPending": "QC Pendiente",
-    "vsLastMonth": "vs mes anterior",
-    "avg": "Promedio",
-    "noData": "Sin datos",
-    "tests": "pruebas",
-    "noOrderData": "No hay datos de pedidos disponibles",
-    "noProductionData": "No hay datos de producción disponibles",
-    "noRecentActivity": "No hay actividad reciente",
-    "ordersAwaitingQC": "{{count}} pedidos esperando pruebas de control de calidad",
-    "overdueInvoicesRequireAttention": "{{count}} facturas vencidas requieren atención",
-    "months": {
-      "jan": "Ene",
-      "feb": "Feb",
-      "mar": "Mar",
-      "apr": "Abr",
-      "may": "May",
-      "jun": "Jun",
-      "jul": "Jul",
-      "aug": "Ago",
-      "sep": "Sep",
-      "oct": "Oct",
-      "nov": "Nov",
-      "dec": "Dic"
-    },
-    "activityTypes": {
-      "order": "Pedido",
-      "delivery": "Entrega",
-      "qc": "Prueba QC",
-      "invoice": "Factura"
-    }
-  },
-  "forms": {
-    "orderForm": {
-      "uploadCustomerPO": "Subir Orden de Compra del Cliente (opcional)",
-      "selectFile": "Seleccionar archivo",
-      "pricingAutoApplied": "Los precios y términos de pago se aplicarán desde el MSA",
-      "standalonePO": "Orden de Compra Independiente (PO)",
-      "pricingManualEntry": "Ingrese los precios manualmente para este pedido",
-      "deliveryLocation": "Ubicación de Entrega",
-      "deliveryLocationPlaceholder": "ej: Locación Pozo A-12, Vaca Muerta",
-      "deliveryAddress": "Dirección de Entrega",
-      "products": "Productos",
-      "addProduct": "Agregar Producto",
-      "product": "Producto",
-      "quantity": "Cantidad (toneladas)",
-      "unitPrice": "Precio Unitario (USD/ton)"
-    }
+    "optional": "Opcional"
   },
   "roles": {
     "admin": "Administrador",
     "operations_manager": "Gerente de Operaciones",
+    "jefatura": "Jefatura Media Distancia",
     "dispatcher": "Despachante",
     "driver": "Chofer",
-    "production_manager": "Gerente de Producción",
     "qc_technician": "Técnico de Control de Calidad",
-    "sales_rep": "Representante de Ventas",
-    "customer_service": "Atención al Cliente",
     "accounting_manager": "Gerente de Contabilidad",
+    "inventory_manager": "Gerente de Inventario",
     "customer_user": "Usuario Cliente"
   },
   "orderStatus": {
@@ -247,13 +176,7 @@
       "deliveryNotSelected": "Entrega no seleccionada",
       "quarry": "Cantera",
       "well": "Pozo",
-      "linkedToCertificate": "Vinculado al certificado de control de calidad",
-      "deliveryConfirmed": "Entrega Confirmada con Firma Electrónica",
-      "signedBy": "Firmado por:",
-      "signerTitleLabel": "Título:",
-      "date": "Fecha:",
-      "location": "Ubicación:",
-      "signature": "Firma:"
+      "linkedToCertificate": "Vinculado al certificado de control de calidad"
     },
     "quality": {
       "title": "Control de Calidad",
@@ -293,7 +216,8 @@
       "errorCreatingTest": "Error al crear prueba",
       "errorRunningTest": "Error al ejecutar prueba",
       "errorApprovingTest": "Error al aprobar prueba",
-      "errorRejectingTest": "Error al rechazar prueba"
+      "errorRejectingTest": "Error al rechazar prueba",
+      "qcTechSubtitle": "Cree pruebas para pedidos, ejecútelas y apruebe para asignar QC y marcar los pedidos listos para despacho."
     },
     "billing": {
       "title": "Facturación y Pago",
@@ -376,7 +300,19 @@
       "completed": "Completado",
       "errorLoadingProduction": "Error al cargar datos de producción",
       "errorStartingProduction": "Error al iniciar producción",
-      "errorUpdatingStage": "Error al actualizar etapa"
+      "errorUpdatingStage": "Error al actualizar etapa",
+      "produceToInventory": "Producir a Inventario",
+      "produceToInventoryTitle": "Producir a Inventario",
+      "produceToInventorySubtitle": "Añadir stock directamente. Sin orden de cliente.",
+      "product": "Producto",
+      "quantity": "Cantidad",
+      "location": "Ubicación",
+      "lotNumber": "Número de lote",
+      "produceSubmit": "Producir",
+      "produceSuccess": "Lote creado. Ir a Calidad, ejecutar la prueba y aprobarla. El inventario solo aumenta tras aprobar QC.",
+      "pendingQCLots": "Lotes QC pendientes",
+      "pendingQCLotsHint": "Producir a inventario – ejecutar QC en Calidad",
+      "produceToInventoryPending": "Producir a inventario – QC pendiente"
     },
     "customers": {
       "title": "Gestión de Clientes",
@@ -428,6 +364,34 @@
       "addProductPricing": "Por favor agregue al menos un producto con precio",
       "errorCreatingMSA": "Error al crear MSA",
       "errorLoadingMSAs": "Error al cargar MSAs"
+    },
+    "approvals": {
+      "title": "Aprobaciones",
+      "subtitle": "Aprobación en dos niveles: Nivel 1 (Jefatura) primero, luego Nivel 2 (Gerencia). Las solicitudes nuevas aparecen en Nivel 1.",
+      "tabLevel1": "Nivel 1 (Jefatura)",
+      "tabLevel2": "Nivel 2 (Gerencia)",
+      "titleLevel1": "Nivel 1 — Jefatura",
+      "titleLevel2": "Nivel 2 — Gerencia",
+      "emptyLevel1": "No hay solicitudes en Nivel 1.",
+      "emptyLevel2": "No hay solicitudes en Nivel 2.",
+      "approveLevel1": "Aprobar (nivel 1)",
+      "approveLevel2": "Aprobar (nivel 2) y ejecutar",
+      "reject": "Rechazar",
+      "rejectTitle": "Rechazar solicitud de redirección",
+      "rejectReason": "Motivo (opcional)",
+      "fromOrder": "Pedido origen",
+      "toOrder": "Pedido destino",
+      "truck": "Camión",
+      "impact": "Impacto",
+      "requestedBy": "Solicitado por",
+      "date": "Fecha",
+      "actions": "Acciones",
+      "errorLoad": "Error al cargar solicitudes de aprobación.",
+      "errorJefatura": "Error al aprobar en Nivel 1.",
+      "errorGerencia": "Error al aprobar en Nivel 2.",
+      "errorReject": "Error al rechazar.",
+      "statusLevel1": "Nivel 1",
+      "statusLevel2": "Nivel 2"
     }
   },
   "forms": {
@@ -447,9 +411,7 @@
       "quantity": "Cantidad (toneladas)",
       "unitPrice": "Precio Unitario",
       "total": "Total",
-      "remove": "Eliminar",
-      "uploadCustomerPO": "Subir Orden de Compra del Cliente (opcional)",
-      "selectFile": "Seleccionar archivo"
+      "remove": "Eliminar"
     }
   }
 }

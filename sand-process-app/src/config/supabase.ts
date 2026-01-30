@@ -256,6 +256,68 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['invoices']['Row'], 'id' | 'invoice_number' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['invoices']['Insert']>;
       };
+      assignment_requests: {
+        Row: {
+          id: string;
+          order_id: string;
+          source_type: string;
+          source_id: string;
+          source_label: string | null;
+          truck_id: string | null;
+          truck_label: string | null;
+          reason: string | null;
+          status: string;
+          requested_by: string;
+          requested_by_name: string | null;
+          requested_at: string;
+          approved_by: string | null;
+          approved_at: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['assignment_requests']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['assignment_requests']['Insert']>;
+      };
+      recommendation_rules: {
+        Row: {
+          id: string;
+          name: string;
+          condition: Record<string, unknown>;
+          action: Record<string, unknown>;
+          priority: number;
+          active: boolean;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['recommendation_rules']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['recommendation_rules']['Insert']>;
+      };
+      redirect_requests: {
+        Row: {
+          id: string;
+          from_order_id: string;
+          from_order_number: string | null;
+          to_order_id: string;
+          to_order_number: string | null;
+          truck_id: string;
+          truck_label: string | null;
+          reason: string | null;
+          impact_on_original_order: string | null;
+          status: string;
+          requested_by: string;
+          requested_by_name: string | null;
+          requested_at: string;
+          approved_by: string | null;
+          approved_at: string | null;
+          rejection_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['redirect_requests']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Database['public']['Tables']['redirect_requests']['Insert']>;
+      };
     };
   };
 }

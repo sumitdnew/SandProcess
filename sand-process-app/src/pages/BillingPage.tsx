@@ -10,6 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Chip,
   Button,
   Dialog,
   DialogTitle,
@@ -25,9 +26,7 @@ import {
 } from '@mui/material';
 import { invoicesApi, ordersApi } from '../services/api';
 import { supabase } from '../config/supabase';
-import { Invoice, Order } from '../types';
-import StatusChip from '../theme/StatusChip';
-import PageHeader from '../theme/PageHeader';
+import { Invoice, PaymentStatus, Order } from '../types';
 
 const BillingPage: React.FC = () => {
   const { t } = useTranslation();
@@ -42,6 +41,16 @@ const BillingPage: React.FC = () => {
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+
+  const getPaymentStatusColor = (status: PaymentStatus) => {
+    const colors: Record<PaymentStatus, string> = {
+      pending: 'warning',
+      paid: 'success',
+      overdue: 'error',
+      partial: 'info',
+    };
+    return colors[status] || 'default';
+  };
 
   useEffect(() => {
     loadData();
@@ -93,6 +102,27 @@ const BillingPage: React.FC = () => {
       return;
     }
 
+    // RN-005: Invoice only with complete proof (signature + certificate + GPS)
+    // Check if delivery has signature
+    const { data: deliveryData } = await supabase
+      .from('deliveries')
+      .select('id, status, actual_arrival')
+      .eq('order_id', selectedOrderForInvoice.id)
+      .eq('status', 'delivered')
+      .single();
+
+    if (!deliveryData) {
+      alert('Cannot generate invoice: Order must be delivered first with signature captured.');
+      return;
+    }
+
+    // Check if order has certificate
+    const hasCert = await ordersApi.hasCertificate(selectedOrderForInvoice.id);
+    if (!hasCert) {
+      alert('Cannot generate invoice: Order must have a QC certificate. This is required for invoicing.');
+      return;
+    }
+
     try {
       // Generate invoice number
       const year = new Date().getFullYear();
@@ -110,7 +140,7 @@ const BillingPage: React.FC = () => {
       const dueDateStr = dueDate.toISOString().split('T')[0];
 
       // Create invoice
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('invoices')
         .insert({
           invoice_number: invoiceNumber,
@@ -185,21 +215,21 @@ const BillingPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title={t('modules.billing.title')}
-        action={
-          <Button
-            variant="contained"
-            onClick={() => setOpenGenerateDialog(true)}
-            disabled={orders.length === 0}
-          >
-            {t('modules.billing.generateInvoice')}
-          </Button>
-        }
-      />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          {t('modules.billing.title')}
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => setOpenGenerateDialog(true)}
+          disabled={orders.length === 0}
+        >
+          {t('modules.billing.generateInvoice')}
+        </Button>
+      </Box>
 
       {error && (
-        <Alert className="animate-slide-in-up" severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -273,7 +303,11 @@ const BillingPage: React.FC = () => {
                       <TableCell>${invoice.total.toLocaleString()}</TableCell>
                       <TableCell>{invoice.daysOutstanding}</TableCell>
                       <TableCell>
-                        <StatusChip status={invoice.paymentStatus} />
+                        <Chip
+                          label={t(`paymentStatus.${invoice.paymentStatus}`)}
+                          color={getPaymentStatusColor(invoice.paymentStatus) as any}
+                          size="small"
+                        />
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -305,7 +339,7 @@ const BillingPage: React.FC = () => {
         </Grid>
       </Grid>
 
-      <Dialog className="animate-fade-in" open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {t('modules.billing.invoiceNumber')}: {selectedInvoice?.invoiceNumber}
         </DialogTitle>
@@ -322,7 +356,11 @@ const BillingPage: React.FC = () => {
                 <Typography><strong>Subtotal:</strong> ${selectedInvoice.subtotal.toLocaleString()}</Typography>
                 <Typography><strong>Tax:</strong> ${selectedInvoice.tax.toLocaleString()}</Typography>
                 <Typography><strong>Total:</strong> ${selectedInvoice.total.toLocaleString()}</Typography>
-                <StatusChip status={selectedInvoice.paymentStatus} sx={{ mt: 1 }} />
+                <Chip
+                  label={t(`paymentStatus.${selectedInvoice.paymentStatus}`)}
+                  color={getPaymentStatusColor(selectedInvoice.paymentStatus) as any}
+                  sx={{ mt: 1 }}
+                />
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle2" sx={{ mt: 2 }}>{t('modules.billing.items')}:</Typography>
@@ -356,7 +394,7 @@ const BillingPage: React.FC = () => {
       </Dialog>
 
       {/* Generate Invoice Dialog */}
-      <Dialog className="animate-fade-in" open={openGenerateDialog} onClose={() => setOpenGenerateDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openGenerateDialog} onClose={() => setOpenGenerateDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('modules.billing.generateInvoice')}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -405,7 +443,7 @@ const BillingPage: React.FC = () => {
       </Dialog>
 
       {/* Payment Dialog */}
-      <Dialog className="animate-fade-in" open={openPaymentDialog} onClose={() => setOpenPaymentDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openPaymentDialog} onClose={() => setOpenPaymentDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t('modules.billing.recordPayment')}</DialogTitle>
         <DialogContent>
           {selectedInvoiceForPayment && (
