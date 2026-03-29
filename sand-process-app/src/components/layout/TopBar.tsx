@@ -12,6 +12,8 @@ import {
   IconButton,
   Badge,
   ListItemText,
+  Snackbar,
+  Button,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
@@ -21,6 +23,10 @@ import type { TaskItem } from '../../types';
 import LanguageIcon from '@mui/icons-material/Language';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import GettingStartedGuide from '../guide/GettingStartedGuide';
+
+const GUIDE_DISMISS_KEY = 'sandProcess.guide.dismissedOnboarding';
 
 const TopBar: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -29,6 +35,8 @@ const TopBar: React.FC = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   const handleLanguageChange = (event: any) => {
     i18n.changeLanguage(event.target.value);
@@ -103,6 +111,15 @@ const TopBar: React.FC = () => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton
+            size="large"
+            color="inherit"
+            aria-label={t('guide.title')}
+            onClick={() => setGuideOpen(true)}
+          >
+            <HelpOutlineIcon />
+          </IconButton>
+
           {/* Language Selector */}
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <Select
@@ -209,6 +226,43 @@ const TopBar: React.FC = () => {
           </Menu>
         </Box>
       </Toolbar>
+
+      <GettingStartedGuide open={guideOpen} onClose={() => setGuideOpen(false)} />
+
+      <Snackbar
+        open={onboardingOpen}
+        onClose={() => setOnboardingOpen(false)}
+        message={t('guide.onboardingMessage')}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        action={
+          <>
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setOnboardingOpen(false);
+                setGuideOpen(true);
+              }}
+            >
+              {t('guide.onboardingOpen')}
+            </Button>
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                try {
+                  localStorage.setItem(GUIDE_DISMISS_KEY, '1');
+                } catch {
+                  /* ignore */
+                }
+                setOnboardingOpen(false);
+              }}
+            >
+              {t('guide.onboardingDismiss')}
+            </Button>
+          </>
+        }
+      />
     </AppBar>
   );
 };

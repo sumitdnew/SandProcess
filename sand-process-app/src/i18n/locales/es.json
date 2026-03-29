@@ -745,6 +745,221 @@
       "net15": "Net 15"
     }
   },
+  "guide": {
+    "title": "Guía de flujo de trabajo",
+    "noSteps": "No hay pasos de guía para el rol actual.",
+    "stepProgress": "Paso {{current}} de {{total}}",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "openPage": "Abrir esta página",
+    "onboardingMessage": "¿Primera vez? Abra la guía para conocer pedidos, calidad, despacho y más.",
+    "onboardingOpen": "Abrir guía",
+    "onboardingDismiss": "No volver a mostrar",
+    "previewLabel": "Vista previa de pantalla (datos demo)",
+    "previewHint": "Diseño demo estático — no son sus datos en vivo.",
+    "instructionsTitle": "Qué hacer en esta pantalla",
+    "nextTitle": "Siguiente",
+    "continueGuideHint": "Use Siguiente abajo para seguir la guía, o Abrir esta página para probarlo en vivo.",
+    "steps": {
+      "dashboard": {
+        "title": "Panel de control",
+        "body": "KPIs, gráficos y actividad reciente. La página inicial depende del rol (los administradores suelen ver esto primero).",
+        "instructionSteps": [
+          "Revise las tarjetas KPI: ingresos, pedidos, entregas y salud de QC.",
+          "Use los gráficos para ver tendencias (p.ej. ingresos, mezcla de estados).",
+          "Consulte Actividad reciente para los últimos pedidos y entregas.",
+          "Si aparece Mis tareas, úselo como atajo — o abra Tareas en el menú izquierdo.",
+          "Para demo de otro rol, abra el menú de rol en la barra superior (ícono de persona) y elija un rol."
+        ],
+        "next": "Normalmente se crean o revisan Pedidos; el flujo sigue con Despachante, QC, Logística o Liberación de retiro, y Facturación. Continúe con Siguiente en esta guía."
+      },
+      "orders": {
+        "title": "Pedidos",
+        "body": "Cree pedidos y siga el estado desde pendiente hasta producción, QC, despacho y cierre.",
+        "instructionSteps": [
+          "Abra Pedidos en el menú izquierdo (o use Abrir esta página abajo).",
+          "Pulse Crear pedido (suele estar arriba a la derecha) para iniciar un pedido.",
+          "Elija cliente, tipo de pedido (MSA vs PO independiente si aplica) y cumplimiento: entrega en sitio vs retiro del cliente.",
+          "Complete datos de entrega o retiro; agregue líneas: producto, cantidad (toneladas) y precio si corresponde.",
+          "Guarde. Use búsqueda o filtros en la lista; abra una fila para detalles y estado.",
+          "Observe cómo cambia el estado cuando producción, QC y despacho actualizan el pedido."
+        ],
+        "next": "Cuando haga falta asignar recursos, Despacho asigna almacén y camión (entrega). En retiro, omita camión y más adelante use Liberación de retiro en planta."
+      },
+      "dispatcher": {
+        "title": "Despachante",
+        "body": "Asigne almacén y camión a entregas; los retiros se gestionan en Liberación de retiro.",
+        "instructionSteps": [
+          "Abra Despachante en el menú izquierdo.",
+          "Use el filtro de cumplimiento si solo quiere Entrega o solo Retiro — en retiro se indica usar Liberación de retiro, no asignación de camión.",
+          "Seleccione un pedido y revise recomendaciones (almacén, camión) cuando aparezcan.",
+          "Use Asignar (o acciones equivalentes) para confirmar almacén y camión en entregas.",
+          "Si debe redirigir carga, use el flujo de redirección — puede requerir Aprobaciones.",
+          "Tras asignar, choferes y Logística ven la corrida; en retiro el avance es por Liberación de retiro."
+        ],
+        "next": "La gerencia aprueba ciertas solicitudes en Aprobaciones. QC prueba en Calidad. Las entregas activas se siguen en Logística."
+      },
+      "approvals": {
+        "title": "Aprobaciones",
+        "body": "Aprobación en dos niveles para algunas solicitudes del despachante (p.ej. redirecciones): Jefatura y luego Operaciones.",
+        "instructionSteps": [
+          "Abra Aprobaciones en el menú izquierdo.",
+          "Revise Nivel 1 (Jefatura) para ítems pendientes de primera aprobación.",
+          "Apruebe o rechace; si pide motivo, complételo; un rechazo detiene hasta corregir.",
+          "Pase a Nivel 2 (Operaciones) para lo que requiera segunda aprobación.",
+          "Confirme pedido y unidades afectadas antes de aprobar.",
+          "Al aprobar en el nivel correcto, el cambio del despachante puede aplicarse."
+        ],
+        "next": "El despacho continúa con asignaciones; los choferes ven actualizaciones en Logística. Las Reglas influyen en futuras recomendaciones."
+      },
+      "rules": {
+        "title": "Reglas de recomendación",
+        "body": "Reglas de negocio que moldean las recomendaciones del despachante (prioridad, almacén preferido, urgencia, etc.).",
+        "instructionSteps": [
+          "Abra Reglas en el menú izquierdo.",
+          "Revise reglas existentes: nombre, condiciones, prioridad (valide en su producto si menor = primero).",
+          "Agregue o edite: campos (región, producto, tamaño de pedido), operador y valor.",
+          "Active/desactive para que solo apliquen las reglas deseadas.",
+          "Guarde y verifique recomendaciones en Despachante tras los cambios."
+        ],
+        "next": "Los despachantes verán la lógica actualizada en las próximas recomendaciones. Combine con Aprobaciones si el cambio de política requiere visto bueno."
+      },
+      "quality": {
+        "title": "Control de calidad",
+        "body": "Pruebas, resultados y certificados para que el pedido salga de la etapa QC.",
+        "instructionSteps": [
+          "Abra Calidad en el menú izquierdo.",
+          "Localice pedidos o muestras pendientes (Tareas también lista trabajo de QC para su rol).",
+          "Abra una fila e ingrese resultados (p.ej. granulometría, humedad) y aprobación según su proceso.",
+          "Adjunte o genere certificados si el flujo lo exige.",
+          "Guarde para que el estado pueda avanzar hacia Listo / despacho.",
+          "Use Actualizar si los datos parecen viejos tras cambios de otro equipo."
+        ],
+        "next": "Con QC aprobado, Despacho programa entrega o prepara retiro. Fallos pueden bloquear despacho hasta resolverlos."
+      },
+      "logistics": {
+        "title": "Logística y trazabilidad",
+        "body": "Seguimiento de entregas: mapa, ruta y estado desde planta hasta sitio del cliente.",
+        "instructionSteps": [
+          "Abra Logística en el menú izquierdo.",
+          "Seleccione una entrega en la lista o en el mapa para ver detalles.",
+          "Siga estados (carga, en tránsito, entrega) y ETA si se muestra.",
+          "Choferes: use esta vista para corridas asignadas; otros monitorean avance y excepciones.",
+          "En el portal, el cliente ve seguimiento de sus entregas; retiro puro no usa el mapa igual."
+        ],
+        "next": "Al completar la entrega, el estado avanza hacia facturación y cierre. Retiros usan Liberación de retiro, no este flujo centrado en mapa."
+      },
+      "pickupRelease": {
+        "title": "Liberación de retiro",
+        "body": "Cierre el retiro del cliente en planta: pesos, ID de chofer y finalización — no es asignación de camión de entrega.",
+        "instructionSteps": [
+          "Abra Liberación de retiro cuando el cliente retire en planta.",
+          "Busque el pedido (a menudo filtrado a listos para retiro).",
+          "Ingrese bruto y tara (o neto) según su proceso.",
+          "Registre ID de chofer o portón si aplica.",
+          "Pulse Completar liberación (o equivalente) para finalizar y avanzar a retirado / completado.",
+          "Si Despacho marcó retiro, no asigne camión de entrega; use esta pantalla."
+        ],
+        "next": "Contabilidad puede facturar en Facturación; el portal puede mostrar retiro completado e facturas si está configurado."
+      },
+      "billing": {
+        "title": "Facturación",
+        "body": "Facturas, importes y PDFs — suba archivos para que el cliente descargue desde el portal si aplica.",
+        "instructionSteps": [
+          "Abra Facturación en el menú izquierdo.",
+          "Localice la fila de factura por pedido o cliente.",
+          "Actualice estado (enviado, pagado, etc.) según su proceso.",
+          "Suba el PDF de factura donde la app lo permita — guarde y cierre para persistir.",
+          "Confirme que el portal del cliente ve el documento si dependen de descarga autónoma."
+        ],
+        "next": "Pueden aparecer tareas contables en Tareas. Los clientes ven facturas en el portal si están vinculadas."
+      },
+      "inventory": {
+        "title": "Inventario",
+        "body": "Stock por sitio y producto; alinee cargas con lo que Despacho y producción necesitan.",
+        "instructionSteps": [
+          "Abra Inventario en el menú izquierdo.",
+          "Revise cantidades por almacén o sitio y grado de producto.",
+          "Atienda alertas o stock bajo si la app las muestra.",
+          "Coordine con Despacho antes de prometer tonelaje con stock escaso.",
+          "Actualice tras movimientos o producción que cambien saldos."
+        ],
+        "next": "Producción alimenta inventario; Despacho consume stock para asignaciones. Flota vincula camiones a esos movimientos."
+      },
+      "fleet": {
+        "title": "Flota",
+        "body": "Camiones y disponibilidad — Despacho asigna vehículos a entregas.",
+        "instructionSteps": [
+          "Abra Flota en el menú izquierdo.",
+          "Revise estado de cada unidad (disponible, asignado, en tránsito, etc.).",
+          "Mantenga datos al día para que Despacho no asigne unidades no disponibles.",
+          "Al regresar un camión, actualice estado para la próxima entrega.",
+          "Pedidos solo de retiro en planta no requieren asignación de flota para el retiro del cliente."
+        ],
+        "next": "Los camiones asignados aparecen en Logística en corridas activas. Mantenimiento o bajas deben reflejarse aquí primero."
+      },
+      "production": {
+        "title": "Producción",
+        "body": "Volúmenes y capacidad por producto frente a la demanda de pedidos abiertos.",
+        "instructionSteps": [
+          "Abra Producción en el menú izquierdo.",
+          "Compare salida o capacidad con lo que piden Pedidos e Inventario.",
+          "Detecte cuellos de botella antes de prometer nuevo tonelaje.",
+          "Alinee con sitios de inventario para que los números sean creíbles para Despacho."
+        ],
+        "next": "Más producción apoya Inventario; QC sigue siendo la compuerta antes de despacho."
+      },
+      "tasks": {
+        "title": "Tareas",
+        "body": "Cola de trabajo por rol: QC, despacho, aprobaciones, retiros, facturas y más.",
+        "instructionSteps": [
+          "Abra Tareas en el menú izquierdo (el ícono de campana en la barra puede mostrar totales).",
+          "Revise categorías: pruebas QC, pedidos a asignar, entregas, aprobaciones, etc.",
+          "Pulse una fila para ir a la pantalla correcta con contexto.",
+          "Úselo cuando no sepa por dónde empezar — refleja el backlog actual.",
+          "Actualice tras completar trabajo en otra pantalla para refrescar la lista."
+        ],
+        "next": "Cada tipo de tarea corresponde a pantallas de esta guía (Calidad, Despachante, Aprobaciones, Liberación de retiro, Facturación, …)."
+      },
+      "msas": {
+        "title": "MSAs",
+        "body": "Acuerdos marco que impulsan precios y términos en pedidos elegibles.",
+        "instructionSteps": [
+          "Abra MSAs en el menú izquierdo.",
+          "Revise acuerdos activos y clientes vinculados.",
+          "Al crear un pedido, elija precios bajo MSA cuando aplique para autollenar términos.",
+          "Actualice documentos cuando cambien términos legales o comerciales.",
+          "Mantenga Clientes alineados con quién está bajo cada MSA."
+        ],
+        "next": "Los nuevos Pedidos deberían tomar precios MSA si está configurado. Facturación referencia la misma relación comercial."
+      },
+      "customers": {
+        "title": "Clientes",
+        "body": "Datos maestros de cliente para pedidos, identidad en portal y MSAs.",
+        "instructionSteps": [
+          "Abra Clientes en el menú izquierdo.",
+          "Alta o edición: nombre, región e identificadores que su proceso exija.",
+          "Vincule acceso al portal o UUIDs si integra Supabase u otros IDs.",
+          "Use estos registros al crear Pedidos para rutas y precios coherentes.",
+          "Desactive cuentas obsoletas según política en lugar de borrar sin control."
+        ],
+        "next": "Pedidos y portal dependen de filas de cliente correctas. Los MSAs se adjuntan a estos registros."
+      },
+      "customerPortal": {
+        "title": "Portal del cliente",
+        "body": "Vista de solo lectura: pedidos, línea de tiempo, mapa (entrega), detalle de retiro y facturas.",
+        "instructionSteps": [
+          "Abra Portal del cliente con rol cliente (o vista previa).",
+          "Si su despliegue tiene selector de cliente, elija la empresa que representa.",
+          "Revise la línea de tiempo: ingresado, en curso, QC, despachado o retiro, entregado o retirado.",
+          "En entregas, abra seguimiento/mapa si está disponible.",
+          "Descargue PDFs de factura tras que Contabilidad los suba en Facturación.",
+          "En retiro se muestran detalles de planta en lugar del mapa de camión en vivo."
+        ],
+        "next": "Internamente el equipo sigue en Pedidos, Despachante, Logística, Liberación de retiro y Facturación; el portal refleja el estado al cliente."
+      }
+    }
+  },
   "errors": {
     "unknown": "Error desconocido",
     "errorPrefix": "Error: "

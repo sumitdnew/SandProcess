@@ -745,6 +745,221 @@
       "net15": "Net 15"
     }
   },
+  "guide": {
+    "title": "Workflow guide",
+    "noSteps": "No guide steps are available for the current role.",
+    "stepProgress": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "openPage": "Open this page",
+    "onboardingMessage": "New here? Open the workflow guide to learn orders, QC, dispatch, and more.",
+    "onboardingOpen": "Open guide",
+    "onboardingDismiss": "Don't show again",
+    "previewLabel": "Screen preview (demo data)",
+    "previewHint": "Static demo layout — not your live data.",
+    "instructionsTitle": "What to do here",
+    "nextTitle": "Next",
+    "continueGuideHint": "Use the Next button at the bottom to continue this guide, or Open this page to try it live.",
+    "steps": {
+      "dashboard": {
+        "title": "Dashboard",
+        "body": "High-level KPIs, charts, and recent activity. Your landing page depends on role (admins often see this first).",
+        "instructionSteps": [
+          "Scan the KPI cards for revenue, orders, deliveries, and QC health.",
+          "Use the charts to spot trends (e.g. revenue, status mix).",
+          "Check Recent activity for the latest order and delivery events.",
+          "If My tasks appears, use it as a shortcut — or open Tasks from the left menu.",
+          "To demo another persona, click the role menu in the top bar (person icon) and pick a role."
+        ],
+        "next": "Typically you create or review Orders, then work flows through Dispatcher, QC, Logistics or Pickup release, and Billing. Follow the next topics in this guide with Next."
+      },
+      "orders": {
+        "title": "Orders",
+        "body": "Create customer orders and watch status from pending through production, QC, dispatch, and completion.",
+        "instructionSteps": [
+          "Open Orders from the left menu (or use Open this page below).",
+          "Click Create order (usually top-right) to start a new order.",
+          "Select the customer, order type (MSA vs standalone PO if offered), and fulfillment: delivery to site vs customer pickup.",
+          "Fill delivery or pickup details, then add lines: product, quantity (tons), and price if required.",
+          "Save the order. Use search or filters on the list to find it again; click a row to open details and status.",
+          "Watch for status changes as production, QC, and dispatch update the order elsewhere in the app."
+        ],
+        "next": "When the order needs resources, Dispatcher assigns warehouse and truck (delivery). For pickup orders, you skip truck assignment and later use Pickup release at the yard."
+      },
+      "dispatcher": {
+        "title": "Dispatcher",
+        "body": "Assign warehouses and trucks to delivery orders; pickup orders are handled in Pickup release instead.",
+        "instructionSteps": [
+          "Open Dispatcher from the left menu.",
+          "Use the fulfillment filter if you want only Delivery or only Pickup rows — pickup rows remind you to use Pickup release, not truck assignment.",
+          "Select an order and review recommendations (warehouse, truck) when shown.",
+          "Use Assign (or equivalent actions) to commit warehouse and truck for deliveries.",
+          "If something must be redirected, use the app’s redirect flow — approvals may appear under Approvals for managers.",
+          "After assignment, drivers and Logistics see the active run; pickup orders move forward via Pickup release when the load leaves."
+        ],
+        "next": "Managers may approve certain requests under Approvals. QC runs tests under Quality. Active deliveries are tracked under Logistics."
+      },
+      "approvals": {
+        "title": "Approvals",
+        "body": "Two-level approval for some dispatcher requests (e.g. redirects): Jefatura first, then Operations when required.",
+        "instructionSteps": [
+          "Open Approvals from the left menu.",
+          "Check Level 1 (Jefatura) for items waiting for first approval.",
+          "Approve or reject with a reason if prompted; rejected items stop until revised.",
+          "Switch to Level 2 (Operations) for items that need second-level approval.",
+          "Confirm which order and trucks/warehouses are affected before approving.",
+          "When approved at the right level, the dispatcher’s change can take effect in the system."
+        ],
+        "next": "Dispatch continues with assignments; drivers see updates in Logistics. Rules (separate screen) influence future recommendations."
+      },
+      "rules": {
+        "title": "Recommendation rules",
+        "body": "Business rules that shape dispatcher recommendations (priority, warehouse preference, urgency, etc.).",
+        "instructionSteps": [
+          "Open Rules from the left menu.",
+          "Review existing rules: name, conditions, priority (lower often runs first — check your product’s behavior).",
+          "Add or edit a rule: set fields (e.g. region, product, order size), operator, and value.",
+          "Toggle Active so only intended rules apply.",
+          "Save changes and verify recommendations on Dispatcher after updates."
+        ],
+        "next": "Dispatchers use updated logic on the next recommendations. Combine with Approvals when policy changes need sign-off."
+      },
+      "quality": {
+        "title": "Quality control",
+        "body": "Run tests, record results, and attach or issue certificates so orders can leave the QC stage.",
+        "instructionSteps": [
+          "Open Quality from the left menu.",
+          "Find orders or samples that need tests (Tasks also lists QC work for your role).",
+          "Open a row, enter test results (e.g. gradation, moisture) and pass/fail as your process requires.",
+          "Attach or generate certificates when the workflow demands it.",
+          "Save so the order status can progress toward Ready / dispatch.",
+          "Use Refresh if data looks stale after another team updates the order."
+        ],
+        "next": "Passed QC orders can be scheduled by Dispatcher (delivery) or prepared for pickup. Failed tests may block dispatch until resolved."
+      },
+      "logistics": {
+        "title": "Logistics & traceability",
+        "body": "Live delivery tracking: map, route, and status from yard to customer site.",
+        "instructionSteps": [
+          "Open Logistics from the left menu.",
+          "Select a delivery in the list or on the map to see details.",
+          "Follow status steps (loading, in transit, delivering) and ETA where shown.",
+          "Drivers: use this view for assigned runs; others use it to monitor progress and exceptions.",
+          "Customers (portal) see tracking for their own deliveries — not for pickup-only flows the same way."
+        ],
+        "next": "When the truck completes delivery, statuses roll forward to billing and completion. Pickup orders use Pickup release instead of this map-centric flow."
+      },
+      "pickupRelease": {
+        "title": "Pickup release",
+        "body": "Close out customer pickup at the yard: weights, driver ID, and completion — not truck assignment.",
+        "instructionSteps": [
+          "Open Pickup release from the left menu when the customer collects at the yard.",
+          "Find the order (often filtered to ready pickup orders).",
+          "Enter gross and tare (or net) weights as your process defines.",
+          "Record driver or gate ID if required.",
+          "Click Complete release (or equivalent) to finalize — this moves the order toward picked up / completed.",
+          "If Dispatcher said the order is pickup, do not assign a delivery truck; use this screen instead."
+        ],
+        "next": "Finance may invoice the order under Billing; the customer portal can show pickup completed and invoices when configured."
+      },
+      "billing": {
+        "title": "Billing",
+        "body": "Invoices, amounts, and PDFs — upload so customers can download from the portal when enabled.",
+        "instructionSteps": [
+          "Open Billing from the left menu.",
+          "Locate the invoice row for the order or customer.",
+          "Update status (e.g. sent, paid) per your process.",
+          "Upload the invoice PDF where the app provides upload — save and close so the file is stored.",
+          "Confirm the customer portal can see the document if you rely on self-service downloads."
+        ],
+        "next": "Accounting tasks may also appear under Tasks. Customers see paid/open invoices in the portal when linked."
+      },
+      "inventory": {
+        "title": "Inventory",
+        "body": "Stock by site and product; align loads with what Dispatcher and production need.",
+        "instructionSteps": [
+          "Open Inventory from the left menu.",
+          "Review quantities by warehouse or site and product grade.",
+          "Watch for alerts or low-stock indicators if your build shows them.",
+          "Coordinate with Dispatcher before promising loads that need scarce stock.",
+          "Refresh after production or movements update balances."
+        ],
+        "next": "Production feeds inventory; Dispatcher consumes it for assignments. Fleet ties trucks to those movements."
+      },
+      "fleet": {
+        "title": "Fleet",
+        "body": "Trucks and availability — Dispatcher assigns vehicles to delivery runs.",
+        "instructionSteps": [
+          "Open Fleet from the left menu.",
+          "Review each truck’s status (available, assigned, in transit, etc.).",
+          "Keep vehicle records current so Dispatcher does not assign unavailable units.",
+          "When a truck returns, update status so the next delivery can use it.",
+          "Pickup-only orders do not need fleet assignment for the customer haul-away path."
+        ],
+        "next": "Assigned trucks appear in Logistics for active runs. Maintenance or downtime should be reflected here first."
+      },
+      "production": {
+        "title": "Production",
+        "body": "Volumes and capacity by product versus demand from open orders.",
+        "instructionSteps": [
+          "Open Production from the left menu.",
+          "Compare output or capacity to what Orders and Inventory require.",
+          "Identify bottlenecks or shortfalls before promising new tonnage.",
+          "Align with Inventory sites so stock numbers stay credible for Dispatcher."
+        ],
+        "next": "Higher production supports Inventory; QC still gates release of material to dispatch."
+      },
+      "tasks": {
+        "title": "Tasks",
+        "body": "Role-specific work queue: QC, dispatch, approvals, pickups, invoices, and more.",
+        "instructionSteps": [
+          "Open Tasks from the left menu (bell icon in the top bar may show counts too).",
+          "Scan categories: QC tests, orders to assign, deliveries, approvals, etc.",
+          "Click a task row to jump to the right page with context.",
+          "Use this when you are unsure where to work next — it reflects current backlog.",
+          "Refresh after completing work elsewhere so the list updates."
+        ],
+        "next": "Each task type maps to screens in this guide (Quality, Dispatcher, Approvals, Pickup release, Billing, …)."
+      },
+      "msas": {
+        "title": "MSAs",
+        "body": "Master service agreements drive pricing and terms on eligible orders.",
+        "instructionSteps": [
+          "Open MSAs from the left menu.",
+          "Review active agreements and linked customers.",
+          "When creating an order, choose MSA-backed pricing where applicable so terms auto-apply.",
+          "Update documents when legal or commercial terms change.",
+          "Keep customer records in Customers aligned with who is under which MSA."
+        ],
+        "next": "New Orders should pick up MSA pricing automatically when configured. Billing references the same commercial relationship."
+      },
+      "customers": {
+        "title": "Customers",
+        "body": "Customer master data for orders, portal identity, and MSAs.",
+        "instructionSteps": [
+          "Open Customers from the left menu.",
+          "Add or edit name, region, and identifiers your process requires.",
+          "Link portal access or UUIDs when integrating Supabase or external IDs.",
+          "Use these records when creating Orders so routing and pricing stay consistent.",
+          "Deactivate or archive obsolete accounts per policy instead of deleting blindly."
+        ],
+        "next": "Orders and the customer portal both depend on correct customer rows. MSAs attach to these records."
+      },
+      "customerPortal": {
+        "title": "Customer portal",
+        "body": "Read-only customer view: orders, timeline, map (delivery), pickup details, and invoices.",
+        "instructionSteps": [
+          "Open Customer portal from the left menu as a customer role (or preview).",
+          "If your deployment uses a customer selector, pick the company you represent.",
+          "Review order timeline: placed, in progress, QC, dispatched or pickup, delivered or picked up.",
+          "For deliveries, open tracking/map when available.",
+          "Download invoice PDFs after Accounting uploads them in Billing.",
+          "Pickup orders show yard pickup details instead of a live truck map."
+        ],
+        "next": "Internally, teams continue on Orders, Dispatcher, Logistics, Pickup release, and Billing — the portal mirrors status for the customer."
+      }
+    }
+  },
   "errors": {
     "unknown": "Unknown error",
     "errorPrefix": "Error: "
