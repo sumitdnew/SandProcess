@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -24,7 +24,7 @@ import {
   MenuItem,
   TextField,
 } from '@mui/material';
-import { invoicesApi, ordersApi } from '../services/api';
+import { invoicesApi, ordersApi, pickupReleasesApi } from '../services/api';
 import { supabase } from '../config/supabase';
 import { Invoice, PaymentStatus, Order } from '../types';
 
@@ -41,6 +41,9 @@ const BillingPage: React.FC = () => {
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfUploadSuccess, setPdfUploadSuccess] = useState(false);
+  const invoicePdfInputRef = useRef<HTMLInputElement>(null);
 
   const getPaymentStatusColor = (status: PaymentStatus) => {
     const colors: Record<PaymentStatus, string> = {
@@ -88,12 +91,64 @@ const BillingPage: React.FC = () => {
 
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
+    setPdfUploadSuccess(false);
     setOpenDialog(true);
   };
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedInvoice(null);
+    setPdfUploadSuccess(false);
+  };
+
+  const handleUploadInvoicePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedInvoice) return;
+    if (file.type !== 'application/pdf') {
+      alert(t('modules.billing.pdfOnly'));
+      e.target.value = '';
+      return;
+    }
+    setUploadingPdf(true);
+    try {
+      await invoicesApi.uploadInvoicePdf(selectedInvoice.id, file);
+      const updated = await invoicesApi.getAll();
+      setInvoices(updated);
+      const inv = updated.find((i) => i.id === selectedInvoice.id);
+      if (inv) {
+        setSelectedInvoice(inv);
+        setPdfUploadSuccess(true);
+      }
+    } catch (err: any) {
+      alert(err?.message || t('modules.billing.uploadFailed'));
+    } finally {
+      setUploadingPdf(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleViewUploadedPdf = async () => {
+    if (!selectedInvoice?.invoicePdfStoragePath) return;
+    const url = await invoicesApi.getInvoicePdfSignedUrl(selectedInvoice.invoicePdfStoragePath);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    else alert(t('modules.billing.couldNotOpenPdf'));
+  };
+
+  const handleRemoveInvoicePdf = async () => {
+    if (!selectedInvoice) return;
+    if (!window.confirm(t('modules.billing.confirmRemovePdf'))) return;
+    setUploadingPdf(true);
+    try {
+      await invoicesApi.clearInvoicePdf(selectedInvoice.id);
+      const updated = await invoicesApi.getAll();
+      setInvoices(updated);
+      const inv = updated.find((i) => i.id === selectedInvoice.id);
+      if (inv) setSelectedInvoice(inv);
+    } catch (err: any) {
+      alert(err?.message || t('modules.billing.uploadFailed'));
+    } finally {
+      setUploadingPdf(false);
+    }
   };
 
   const handleGenerateInvoice = async () => {
@@ -102,24 +157,33 @@ const BillingPage: React.FC = () => {
       return;
     }
 
-    // RN-005: Invoice only with complete proof (signature + certificate + GPS)
-    // Check if delivery has signature
-    const { data: deliveryData } = await supabase
-      .from('deliveries')
-      .select('id, status, actual_arrival')
-      .eq('order_id', selectedOrderForInvoice.id)
-      .eq('status', 'delivered')
-      .single();
+    const isPickup = selectedOrderForInvoice.fulfillmentType === 'pickup';
 
-    if (!deliveryData) {
-      alert('Cannot generate invoice: Order must be delivered first with signature captured.');
-      return;
+    if (isPickup) {
+      const release = await pickupReleasesApi.getByOrderId(selectedOrderForInvoice.id);
+      if (!release) {
+        alert(t('modules.billing.cannotInvoicePickupNoRelease'));
+        return;
+      }
+    } else {
+      // RN-005: Invoice only with complete proof (delivery + certificate)
+      const { data: deliveryData } = await supabase
+        .from('deliveries')
+        .select('id, status, actual_arrival')
+        .eq('order_id', selectedOrderForInvoice.id)
+        .eq('status', 'delivered')
+        .single();
+
+      if (!deliveryData) {
+        alert(t('modules.billing.cannotInvoiceNotDelivered'));
+        return;
+      }
     }
 
     // Check if order has certificate
     const hasCert = await ordersApi.hasCertificate(selectedOrderForInvoice.id);
     if (!hasCert) {
-      alert('Cannot generate invoice: Order must have a QC certificate. This is required for invoicing.');
+      alert(t('modules.billing.cannotInvoiceNoCert'));
       return;
     }
 
@@ -303,11 +367,16 @@ const BillingPage: React.FC = () => {
                       <TableCell>${invoice.total.toLocaleString()}</TableCell>
                       <TableCell>{invoice.daysOutstanding}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={t(`paymentStatus.${invoice.paymentStatus}`)}
-                          color={getPaymentStatusColor(invoice.paymentStatus) as any}
-                          size="small"
-                        />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                          <Chip
+                            label={t(`paymentStatus.${invoice.paymentStatus}`)}
+                            color={getPaymentStatusColor(invoice.paymentStatus) as any}
+                            size="small"
+                          />
+                          {invoice.invoicePdfStoragePath && (
+                            <Chip label={t('modules.billing.pdfUploadedBadge')} size="small" color="primary" variant="outlined" />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -384,12 +453,77 @@ const BillingPage: React.FC = () => {
                   )}
                 </Box>
               </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" sx={{ mt: 2 }}>{t('modules.billing.officialInvoicePdf')}:</Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                  {t('modules.billing.pdfUploadSavesAutomatically')}
+                </Typography>
+                {pdfUploadSuccess && (
+                  <Alert severity="success" sx={{ mb: 1 }} onClose={() => setPdfUploadSuccess(false)}>
+                    {t('modules.billing.pdfSavedToInvoice')}
+                  </Alert>
+                )}
+                <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    ref={invoicePdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    hidden
+                    onChange={handleUploadInvoicePdf}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={uploadingPdf}
+                    onClick={() => invoicePdfInputRef.current?.click()}
+                  >
+                    {uploadingPdf
+                      ? t('common.loading')
+                      : selectedInvoice.invoicePdfStoragePath
+                        ? t('modules.billing.replacePdf')
+                        : t('modules.billing.uploadPdf')}
+                  </Button>
+                  {selectedInvoice.invoicePdfStoragePath && (
+                    <>
+                      <Chip size="small" color="success" label={t('modules.billing.pdfOnFile')} />
+                      <Button size="small" variant="contained" onClick={handleViewUploadedPdf} disabled={uploadingPdf}>
+                        {t('modules.billing.viewUploadedPdf')}
+                      </Button>
+                      <Button size="small" color="error" onClick={handleRemoveInvoicePdf} disabled={uploadingPdf}>
+                        {t('modules.billing.removePdf')}
+                      </Button>
+                    </>
+                  )}
+                </Box>
+              </Grid>
             </Grid>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
-          <Button variant="contained">{t('modules.billing.downloadPDF')}</Button>
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2,
+            pt: 0,
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: 1.5,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {t('modules.billing.invoiceDialogFooterHint')}
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              onClick={() => selectedInvoice?.invoicePdfStoragePath && handleViewUploadedPdf()}
+              disabled={!selectedInvoice?.invoicePdfStoragePath}
+            >
+              {t('modules.billing.downloadPDF')}
+            </Button>
+            <Button onClick={handleCloseDialog} variant="contained" color="primary">
+              {t('modules.billing.doneClose')}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
 

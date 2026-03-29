@@ -13,6 +13,8 @@ export const mockUsers: User[] = [
   { id: '5', name: 'Ana Martínez', email: 'ana.martinez@sandprocess.com', role: 'accounting_manager' },
   { id: '6', name: 'Elena Vargas', email: 'elena.vargas@sandprocess.com', role: 'inventory_manager' },
   { id: '8', name: 'Pedro Sánchez', email: 'pedro.sanchez@sandprocess.com', role: 'driver' },
+  /** Set `customerId` to a real Supabase `customers.id` (uuid), or use REACT_APP_PORTAL_CUSTOMER_ID in .env */
+  { id: '9', name: 'YPF Portal', email: 'portal@ypf.com', role: 'customer_user' },
 ];
 
 // Mock Customers
@@ -114,6 +116,7 @@ export const mockOrders: Order[] = [
     status: 'delivered',
     totalAmount: 4750,
     createdAt: '2026-01-13T10:00:00Z',
+    fulfillmentType: 'delivery',
   },
   {
     id: '2',
@@ -130,6 +133,7 @@ export const mockOrders: Order[] = [
     status: 'dispatched',
     totalAmount: 7125,
     createdAt: '2026-01-14T09:00:00Z',
+    fulfillmentType: 'delivery',
   },
   {
     id: '3',
@@ -146,6 +150,7 @@ export const mockOrders: Order[] = [
     status: 'ready',
     totalAmount: 2850,
     createdAt: '2026-01-15T11:00:00Z',
+    fulfillmentType: 'delivery',
   },
   {
     id: '4',
@@ -162,6 +167,7 @@ export const mockOrders: Order[] = [
     status: 'in_production',
     totalAmount: 9500,
     createdAt: '2026-01-16T08:00:00Z',
+    fulfillmentType: 'delivery',
   },
   {
     id: '5',
@@ -178,6 +184,7 @@ export const mockOrders: Order[] = [
     status: 'pending',
     totalAmount: 4275,
     createdAt: '2026-01-16T14:00:00Z',
+    fulfillmentType: 'delivery',
   },
 ];
 

@@ -21,7 +21,10 @@ import {
   Tab,
   CircularProgress,
   Alert,
+  TextField,
+  MenuItem,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import { trucksApi, driversApi } from '../services/api';
 import { Truck, Driver, TruckStatus } from '../types';
 
@@ -34,6 +37,13 @@ const FleetPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [selectedTruck, setSelectedTruck] = useState<Truck | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
+  const [newTruck, setNewTruck] = useState({
+    licensePlate: '',
+    capacity: 25,
+    type: 'old' as 'old' | 'new',
+  });
 
   useEffect(() => {
     loadData();
@@ -91,6 +101,29 @@ const FleetPage: React.FC = () => {
     setSelectedTruck(null);
   };
 
+  const handleOpenCreateDialog = () => {
+    setNewTruck({ licensePlate: '', capacity: 25, type: 'old' });
+    setOpenCreateDialog(true);
+  };
+
+  const handleCreateTruck = async () => {
+    if (!newTruck.licensePlate.trim()) {
+      setError(t('modules.fleet.licensePlateRequired'));
+      return;
+    }
+    try {
+      setCreateSaving(true);
+      setError(null);
+      await trucksApi.create(newTruck);
+      setOpenCreateDialog(false);
+      loadData();
+    } catch (err: any) {
+      setError(err.message || t('modules.fleet.errorCreatingTruck'));
+    } finally {
+      setCreateSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -101,9 +134,14 @@ const FleetPage: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        {t('modules.fleet.title')}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+          {t('modules.fleet.title')}
+        </Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateDialog}>
+          {t('modules.fleet.addTruck')}
+        </Button>
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -134,7 +172,7 @@ const FleetPage: React.FC = () => {
                   <TableRow key={truck.id}>
                     <TableCell>{truck.licensePlate}</TableCell>
                     <TableCell>{truck.capacity} tons</TableCell>
-                    <TableCell>{truck.type === 'old' ? 'Old (25-26t)' : 'New (50-55t)'}</TableCell>
+                    <TableCell>{truck.type === 'old' ? t('modules.fleet.oldCapacity') : t('modules.fleet.newCapacity')}</TableCell>
                     <TableCell>
                       <Chip
                         label={t(`truckStatus.${truck.status}`)}
@@ -280,6 +318,53 @@ const FleetPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>{t('common.cancel')}</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Create Truck Dialog */}
+      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t('modules.fleet.createTruck')}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label={t('modules.fleet.licensePlate')}
+                value={newTruck.licensePlate}
+                onChange={(e) => setNewTruck({ ...newTruck, licensePlate: e.target.value })}
+                placeholder="e.g. ABC-123"
+                required
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                type="number"
+                label={t('modules.fleet.capacity')}
+                value={newTruck.capacity}
+                onChange={(e) => setNewTruck({ ...newTruck, capacity: parseInt(e.target.value, 10) || 25 })}
+                inputProps={{ min: 1, max: 150 }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                select
+                label={t('modules.fleet.type')}
+                value={newTruck.type}
+                onChange={(e) => setNewTruck({ ...newTruck, type: e.target.value as 'old' | 'new' })}
+              >
+                <MenuItem value="old">{t('modules.fleet.oldCapacity')}</MenuItem>
+                <MenuItem value="new">{t('modules.fleet.newCapacity')}</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreateDialog(false)}>{t('common.cancel')}</Button>
+          <Button onClick={handleCreateTruck} variant="contained" disabled={createSaving}>
+            {createSaving ? t('common.loading') : t('modules.fleet.createTruck')}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

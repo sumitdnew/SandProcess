@@ -20,8 +20,9 @@ import {
   TableRow,
 } from '@mui/material';
 import { CheckCircle as CheckCircleIcon, Warehouse as WarehouseIcon, LocalShipping as TruckIcon, Build as BuildIcon } from '@mui/icons-material';
-import { RecommendationOption, RecommendationSourceType } from '../../types';
-import { useNavigate } from 'react-router-dom';
+import { RecommendationOption, RecommendationSourceType, FulfillmentType } from '../../types';
+import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { dispatcherApi, ordersApi, assignmentRequestsApi, redirectRequestsApi, qcTestsApi } from '../../services/api';
 import { useApp } from '../../context/AppContext';
 import type { QCTest } from '../../types';
@@ -30,6 +31,7 @@ interface RecommendationPanelProps {
   orderId: string | null;
   orderNumber?: string | null;
   orderStatus?: string | null;
+  fulfillmentType?: FulfillmentType | null;
   onAssignSuccess: () => void;
 }
 
@@ -46,7 +48,14 @@ const SourceIcon: React.FC<{ type: RecommendationSourceType }> = ({ type }) => {
   return <WarehouseIcon fontSize="small" />;
 };
 
-export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ orderId, orderNumber, orderStatus, onAssignSuccess }) => {
+export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({
+  orderId,
+  orderNumber,
+  orderStatus,
+  fulfillmentType,
+  onAssignSuccess,
+}) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const [options, setOptions] = useState<RecommendationOption[]>([]);
@@ -210,7 +219,14 @@ export const RecommendationPanel: React.FC<RecommendationPanelProps> = ({ orderI
         </Alert>
       )}
       {options.length === 0 ? (
-        <Typography color="text.secondary">No recommendations available for this order.</Typography>
+        fulfillmentType === 'pickup' ? (
+          <Alert severity="info">
+            {t('pages.dispatcher.pickupNoRecommendations')}{' '}
+            <Link to="/pickup-release">{t('pages.dispatcher.goToPickupRelease')}</Link>
+          </Alert>
+        ) : (
+          <Typography color="text.secondary">No recommendations available for this order.</Typography>
+        )
       ) : (
         <>
           <FormControl component="fieldset">

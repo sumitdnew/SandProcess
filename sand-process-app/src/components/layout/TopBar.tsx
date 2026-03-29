@@ -151,7 +151,7 @@ const TopBar: React.FC = () => {
                       navigate(task.link);
                     }}
                   >
-                    <ListItemText primary={task.title} secondary={`${task.count} ${task.count === 1 ? 'task' : 'tasks'}`} />
+                    <ListItemText primary={t(`pages.tasks.taskTitles.${task.id}` as const) || task.title} secondary={`${task.count} ${task.count === 1 ? t('pages.tasks.task') : t('pages.tasks.tasks')}`} />
                   </MenuItem>
                 ))}
                 <MenuItem
@@ -160,7 +160,7 @@ const TopBar: React.FC = () => {
                     navigate('/tasks');
                   }}
                 >
-                  <ListItemText primary="View all tasks" primaryTypographyProps={{ fontWeight: 600 }} />
+                  <ListItemText primary={t('pages.tasks.viewAllTasks')} primaryTypographyProps={{ fontWeight: 600 }} />
                 </MenuItem>
               </>
             )}

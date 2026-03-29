@@ -37,7 +37,7 @@ const DispatcherPage: React.FC = () => {
       const ordersData = await ordersApi.getAll();
       setOrders(ordersData || []);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load orders.');
+      setError(e instanceof Error ? e.message : t('pages.dispatcher.failedToLoad'));
       setOrders([]);
     } finally {
       setLoading(false);
@@ -93,17 +93,18 @@ const DispatcherPage: React.FC = () => {
       setBreakdownOrderNumbers(map);
     };
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [breakdownTrucks.length]);
 
   useEffect(() => {
     loadOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     loadPendingRedirects();
     loadBreakdownTrucks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
 
   const handleSelectOrder = (order: Order) => {
@@ -120,8 +121,8 @@ const DispatcherPage: React.FC = () => {
   return (
     <Box>
       <PageHeader
-        title="Dispatcher"
-        subtitle="View orders, get recommendations, and assign warehouse or truck."
+        title={t('pages.dispatcher.title')}
+        subtitle={t('pages.dispatcher.subtitle')}
         action={
           <Button
             startIcon={<RefreshIcon />}
@@ -132,7 +133,7 @@ const DispatcherPage: React.FC = () => {
             }}
             disabled={loading}
           >
-            Refresh
+            {t('common.refresh')}
           </Button>
         }
       />
@@ -174,6 +175,7 @@ const DispatcherPage: React.FC = () => {
               orderId={selectedOrder?.id ?? null}
               orderNumber={selectedOrder?.orderNumber ?? null}
               orderStatus={selectedOrder?.status ?? null}
+              fulfillmentType={selectedOrder?.fulfillmentType ?? null}
               onAssignSuccess={handleAssignSuccess}
             />
           </Paper>

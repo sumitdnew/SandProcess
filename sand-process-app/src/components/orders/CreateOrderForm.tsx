@@ -14,13 +14,17 @@ import {
   IconButton,
   Paper,
   Divider,
+  ToggleButton,
+  ToggleButtonGroup,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { customersApi, productsApi, msasApi, ordersApi } from '../../services/api';
-import { Customer, Product, MSA } from '../../types';
+import { Customer, Product, MSA, FulfillmentType } from '../../types';
 
 interface OrderProduct {
   productId: string;
@@ -48,6 +52,13 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
   const [deliveryLocation, setDeliveryLocation] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>('delivery');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupWindowStart, setPickupWindowStart] = useState('');
+  const [pickupWindowEnd, setPickupWindowEnd] = useState('');
+  const [pickupInstructions, setPickupInstructions] = useState('');
+  const [orderWeightTons, setOrderWeightTons] = useState<string>('');
   const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([
     { productId: '', quantity: 0, unitPrice: 0 },
   ]);
@@ -146,8 +157,16 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
   };
 
   const handleSubmit = async () => {
-    if (!customerId || !deliveryDate || !deliveryLocation || !deliveryAddress) {
-      alert('Please fill in all required fields');
+    if (!customerId || !deliveryDate) {
+      alert(t('modules.orders.fillRequiredFields'));
+      return;
+    }
+    if (fulfillmentType === 'delivery' && (!deliveryLocation || !deliveryAddress)) {
+      alert(t('modules.orders.fillRequiredFields'));
+      return;
+    }
+    if (fulfillmentType === 'pickup' && (!pickupLocation.trim() || !pickupAddress.trim())) {
+      alert(t('modules.orders.pickupRequiredFields'));
       return;
     }
 
@@ -156,9 +175,12 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
     );
 
     if (validProducts.length === 0) {
-      alert('Please add at least one product');
+      alert(t('modules.orders.addAtLeastOneProduct'));
       return;
     }
+
+    const loc = fulfillmentType === 'pickup' ? pickupLocation.trim() : deliveryLocation;
+    const addr = fulfillmentType === 'pickup' ? pickupAddress.trim() : deliveryAddress;
 
     setLoading(true);
     try {
@@ -166,17 +188,28 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
         customerId,
         msaId: msaId || undefined,
         deliveryDate: deliveryDate.toISOString().split('T')[0],
-        deliveryLocation,
-        deliveryAddress,
+        deliveryLocation: loc,
+        deliveryAddress: addr,
         products: validProducts,
         notes: notes || undefined,
+        fulfillmentType,
+        ...(fulfillmentType === 'pickup'
+          ? {
+              pickupLocation: pickupLocation.trim(),
+              pickupAddress: pickupAddress.trim(),
+              pickupWindowStart: pickupWindowStart ? new Date(pickupWindowStart).toISOString() : undefined,
+              pickupWindowEnd: pickupWindowEnd ? new Date(pickupWindowEnd).toISOString() : undefined,
+              pickupInstructions: pickupInstructions.trim() || undefined,
+              orderWeightTons: orderWeightTons ? parseFloat(orderWeightTons) : undefined,
+            }
+          : {}),
       });
       
       onSuccess();
       handleClose();
     } catch (error: any) {
       console.error('Error creating order:', error);
-      alert('Error creating order: ' + (error.message || 'Unknown error'));
+      alert(t('modules.orders.errorCreatingOrder') + ': ' + (error.message || t('modules.orders.unknown')));
     } finally {
       setLoading(false);
     }
@@ -189,6 +222,13 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
     setDeliveryLocation('');
     setDeliveryAddress('');
     setNotes('');
+    setFulfillmentType('delivery');
+    setPickupLocation('');
+    setPickupAddress('');
+    setPickupWindowStart('');
+    setPickupWindowEnd('');
+    setPickupInstructions('');
+    setOrderWeightTons('');
     setOrderProducts([{ productId: '', quantity: 0, unitPrice: 0 }]);
     onClose();
   };
@@ -273,37 +313,124 @@ const CreateOrderForm: React.FC<CreateOrderFormProps> = ({ open, onClose, onSucc
               )}
             </Grid>
 
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel id="fulfillment-label" shrink sx={{ position: 'relative', transform: 'none', mb: 1 }}>
+                  {t('modules.orders.fulfillmentType')}
+                </InputLabel>
+                <ToggleButtonGroup
+                  exclusive
+                  value={fulfillmentType}
+                  onChange={(_, v) => v && setFulfillmentType(v)}
+                  fullWidth
+                  size="small"
+                  color="primary"
+                >
+                  <ToggleButton value="delivery">{t('modules.orders.fulfillmentDelivery')}</ToggleButton>
+                  <ToggleButton value="pickup">{t('modules.orders.fulfillmentPickup')}</ToggleButton>
+                </ToggleButtonGroup>
+              </FormControl>
+            </Grid>
+
             <Grid item xs={12} md={6}>
               <DatePicker
-                label={t('modules.orders.deliveryDate')}
+                label={fulfillmentType === 'pickup' ? t('modules.orders.deliveryDate') : t('modules.orders.deliveryDate')}
                 value={deliveryDate}
                 onChange={(newValue) => setDeliveryDate(newValue)}
                 slotProps={{ textField: { fullWidth: true, required: true } }}
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label={t('forms.orderForm.deliveryLocation')}
-                value={deliveryLocation}
-                onChange={(e) => setDeliveryLocation(e.target.value)}
-                required
-                placeholder={t('forms.orderForm.deliveryLocationPlaceholder')}
-              />
-            </Grid>
+            {fulfillmentType === 'delivery' ? (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t('forms.orderForm.deliveryLocation')}
+                    value={deliveryLocation}
+                    onChange={(e) => setDeliveryLocation(e.target.value)}
+                    required
+                    placeholder={t('forms.orderForm.deliveryLocationPlaceholder')}
+                  />
+                </Grid>
 
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label={t('forms.orderForm.deliveryAddress')}
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                required
-                multiline
-                rows={2}
-              />
-            </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t('forms.orderForm.deliveryAddress')}
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    required
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+              </>
+            ) : (
+              <>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.pickupLocation')}
+                    value={pickupLocation}
+                    onChange={(e) => setPickupLocation(e.target.value)}
+                    required
+                    placeholder={t('modules.orders.pickupLocation')}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.orderWeightTons')}
+                    type="number"
+                    value={orderWeightTons}
+                    onChange={(e) => setOrderWeightTons(e.target.value)}
+                    inputProps={{ min: 0, step: 0.1 }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.pickupAddress')}
+                    value={pickupAddress}
+                    onChange={(e) => setPickupAddress(e.target.value)}
+                    required
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.pickupWindowStart')}
+                    type="datetime-local"
+                    value={pickupWindowStart}
+                    onChange={(e) => setPickupWindowStart(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.pickupWindowEnd')}
+                    type="datetime-local"
+                    value={pickupWindowEnd}
+                    onChange={(e) => setPickupWindowEnd(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t('modules.orders.pickupInstructions')}
+                    value={pickupInstructions}
+                    onChange={(e) => setPickupInstructions(e.target.value)}
+                    multiline
+                    rows={2}
+                  />
+                </Grid>
+              </>
+            )}
 
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />

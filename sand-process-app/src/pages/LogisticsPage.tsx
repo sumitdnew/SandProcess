@@ -91,7 +91,7 @@ const LogisticsPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-  const [, setOrders] = useState<Order[]>([]);
+  const [ordersSnapshot, setOrdersSnapshot] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
@@ -110,7 +110,7 @@ const LogisticsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -122,10 +122,7 @@ const LogisticsPage: React.FC = () => {
         ordersApi.getAll(),
       ]);
       setDeliveries(deliveriesData);
-      const readyOrders = ordersData.filter(o => 
-        o.status === 'ready' || o.status === 'confirmed'
-      );
-      setOrders(readyOrders);
+      setOrdersSnapshot(ordersData);
       const orderIds = Array.from(new Set((deliveriesData || []).map((d) => d.orderId)));
       const certMap: Record<string, boolean> = {};
       await Promise.all(
@@ -342,7 +339,7 @@ const LogisticsPage: React.FC = () => {
 
       const hasCert = await ordersApi.hasCertificate(selectedDelivery.orderId);
       if (!hasCert) {
-        alert('Cannot confirm delivery: Order must have a QC certificate.');
+        alert(t('modules.logistics.cannotConfirmNoCert'));
         return;
       }
 
@@ -498,6 +495,19 @@ const LogisticsPage: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {ordersSnapshot.some(
+        (o) =>
+          o.fulfillmentType === 'pickup' &&
+          ['ready', 'dispatched', 'confirmed', 'in_production', 'qc'].includes(o.status)
+      ) && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {t('modules.logistics.pickupOrdersHint')}{' '}
+          <Button size="small" sx={{ ml: 1 }} variant="outlined" onClick={() => navigate('/pickup-release')}>
+            {t('pages.dispatcher.goToPickupRelease')}
+          </Button>
         </Alert>
       )}
 
@@ -795,7 +805,7 @@ const LogisticsPage: React.FC = () => {
                         (() => {
                           const hasCert = certByOrderId[selectedDelivery.orderId];
                           return (
-                            <Tooltip title={!hasCert ? 'Waiting for QC certificate' : ''}>
+                            <Tooltip title={!hasCert ? t('modules.logistics.waitingForQCCert') : ''}>
                               <span>
                                 <Button
                                   variant="contained"
@@ -804,7 +814,7 @@ const LogisticsPage: React.FC = () => {
                                   onClick={() => handleMarkInTransit(selectedDelivery.id)}
                                   disabled={!hasCert}
                                 >
-                                  {hasCert ? t('modules.logistics.markInTransit') : 'Pick up (waiting for QC cert)'}
+                                  {hasCert ? t('modules.logistics.markInTransit') : t('modules.logistics.pickUpWaitingQC')}
                                 </Button>
                               </span>
                             </Tooltip>
@@ -1070,7 +1080,7 @@ const LogisticsPage: React.FC = () => {
                     fullWidth
                     startIcon={<PhotoIcon />}
                   >
-                    {signatureData.photo ? 'Change Photo' : t('modules.logistics.uploadPhoto')}
+                    {signatureData.photo ? t('modules.logistics.changePhoto') : t('modules.logistics.uploadPhoto')}
                   </Button>
                 </label>
                 {signatureData.photo && (

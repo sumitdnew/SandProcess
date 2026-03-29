@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -17,14 +17,24 @@ import {
   Button,
   CircularProgress,
   Alert,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { MapContainer, TileLayer, Marker, Polyline, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { deliveriesApi, ordersApi } from '../services/api';
-import { Delivery, Order } from '../types';
+import { deliveriesApi, ordersApi, invoicesApi, customersApi } from '../services/api';
+import { Delivery, Order, Invoice, Customer } from '../types';
+import { useApp } from '../context/AppContext';
+import { isUuid } from '../utils/isUuid';
+import { getOrderStatusLabel } from '../utils/orderStatusLabel';
 
-// Fix for default marker icon
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
@@ -32,36 +42,119 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+function maskId(s?: string | null): string {
+  if (!s || s.length < 4) return '—';
+  return `…${s.slice(-4)}`;
+}
+
 const CustomerPortalPage: React.FC = () => {
   const { t } = useTranslation();
+  const { currentUser } = useApp();
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
-  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
 
-  // In real app, get customer ID from authentication context
-  const customerId = '1'; // YPF for demo
+  const customerOrders = useMemo(
+    () => (selectedCustomerId ? orders.filter((o) => o.customerId === selectedCustomerId) : []),
+    [orders, selectedCustomerId]
+  );
+
+  const selectedOrder = useMemo(
+    () => customerOrders.find((o) => o.id === selectedOrderId) ?? null,
+    [customerOrders, selectedOrderId]
+  );
+
+  const deliveryForSelected = useMemo(() => {
+    if (!selectedOrder || selectedOrder.fulfillmentType === 'pickup') return null;
+    return deliveries.find((d) => d.orderId === selectedOrder.id) ?? null;
+  }, [deliveries, selectedOrder]);
 
   useEffect(() => {
-    loadData();
+    loadBaseData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadData = async () => {
+  /** Prototype default: portal user / env / sole customer — user can change in dropdown anytime. */
+  useEffect(() => {
+    if (!customers.length) return;
+    setSelectedCustomerId((prev) => {
+      if (prev) return prev;
+      const userCust =
+        currentUser?.role === 'customer_user' && isUuid(currentUser.customerId || undefined)
+          ? currentUser.customerId!.trim()
+          : '';
+      if (userCust && customers.some((c) => c.id === userCust)) return userCust;
+      const envCust = isUuid(process.env.REACT_APP_PORTAL_CUSTOMER_ID || undefined)
+        ? process.env.REACT_APP_PORTAL_CUSTOMER_ID!.trim()
+        : '';
+      if (envCust && customers.some((c) => c.id === envCust)) return envCust;
+      if (customers.length === 1) return customers[0].id;
+      return '';
+    });
+  }, [customers, currentUser]);
+
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setInvoices([]);
+      return;
+    }
+    let cancelled = false;
+    setInvoicesLoading(true);
+    invoicesApi
+      .getForCustomer(selectedCustomerId)
+      .then((inv) => {
+        if (!cancelled) setInvoices(inv);
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          console.error(err);
+          setError(err?.message || 'Failed to load invoices');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setInvoicesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCustomerId]);
+
+  useEffect(() => {
+    setSelectedOrderId((prev) => {
+      if (prev && customerOrders.some((o) => o.id === prev)) return prev;
+      return customerOrders[0]?.id ?? null;
+    });
+  }, [selectedCustomerId, customerOrders]);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+    if (selectedOrder.fulfillmentType === 'delivery') {
+      const d = deliveries.find((x) => x.orderId === selectedOrder.id);
+      setSelectedDelivery(d ?? null);
+    } else {
+      setSelectedDelivery(null);
+    }
+  }, [selectedOrder, deliveries]);
+
+  const loadBaseData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [deliveriesData, ordersData] = await Promise.all([
+      const [customersData, deliveriesData, ordersData] = await Promise.all([
+        customersApi.getAll(),
         deliveriesApi.getAll(),
         ordersApi.getAll(),
       ]);
+      setCustomers(customersData);
       setDeliveries(deliveriesData);
-      // Filter orders for this customer
-      const customerOrdersList = ordersData.filter(o => o.customerId === customerId);
-      setCustomerOrders(customerOrdersList);
-      if (deliveriesData.length > 0) {
-        setSelectedDelivery(deliveriesData[0]);
-      }
+      setOrders(ordersData);
     } catch (err: any) {
       console.error('Error loading customer portal data:', err);
       setError(err.message || 'Failed to load data');
@@ -70,9 +163,18 @@ const CustomerPortalPage: React.FC = () => {
     }
   };
 
-  const center = selectedDelivery
+  const handleDownloadInvoice = async (inv: Invoice) => {
+    if (!inv.invoicePdfStoragePath) return;
+    const url = await invoicesApi.getInvoicePdfSignedUrl(inv.invoicePdfStoragePath);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const center: [number, number] = selectedDelivery
     ? [selectedDelivery.route.well.lat, selectedDelivery.route.well.lng]
     : [-38.5, -69.0];
+
+  const showLiveMap =
+    selectedOrder?.fulfillmentType === 'delivery' && !!selectedDelivery && selectedOrder?.id === selectedDelivery.orderId;
 
   if (loading) {
     return (
@@ -88,6 +190,36 @@ const CustomerPortalPage: React.FC = () => {
         {t('common.customerPortal')}
       </Typography>
 
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <FormControl fullWidth size="small" sx={{ maxWidth: 480 }}>
+          <InputLabel id="portal-customer-label">{t('portal.selectCustomer')}</InputLabel>
+          <Select
+            labelId="portal-customer-label"
+            label={t('portal.selectCustomer')}
+            value={selectedCustomerId}
+            onChange={(e) => setSelectedCustomerId(e.target.value as string)}
+          >
+            <MenuItem value="">
+              <em>{t('portal.selectCustomerPlaceholder')}</em>
+            </MenuItem>
+            {customers.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name} {c.code ? `(${c.code})` : ''}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          {t('portal.selectCustomerHint')}
+        </Typography>
+      </Paper>
+
+      {!selectedCustomerId && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {t('portal.selectCustomerFirst')}
+        </Alert>
+      )}
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -98,35 +230,51 @@ const CustomerPortalPage: React.FC = () => {
         <Grid item xs={12} md={8}>
           <Paper sx={{ height: 500, p: 1, mb: 2 }}>
             <Typography variant="h6" sx={{ p: 2 }}>
-              Live Tracking
+              {showLiveMap ? t('portal.liveMap') : t('portal.trackingTitle')}
             </Typography>
-            <MapContainer
-              center={center as [number, number]}
-              zoom={10}
-              style={{ height: 'calc(100% - 80px)', width: '100%' }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {selectedDelivery && (
-                <>
-                  <Marker position={[selectedDelivery.route.quarry.lat, selectedDelivery.route.quarry.lng]}>
-                    <Popup>Quarry</Popup>
-                  </Marker>
-                  <Marker position={[selectedDelivery.route.well.lat, selectedDelivery.route.well.lng]}>
-                    <Popup>Your Well: {selectedDelivery.route.well.name}</Popup>
-                  </Marker>
-                  {selectedDelivery.gpsTrack && selectedDelivery.gpsTrack.length > 0 && (
-                    <Polyline
-                      positions={selectedDelivery.gpsTrack.map(point => [point.lat, point.lng] as [number, number])}
-                      color="blue"
-                      weight={3}
-                    />
-                  )}
-                </>
-              )}
-            </MapContainer>
+            {showLiveMap ? (
+              <MapContainer
+                center={center}
+                zoom={10}
+                style={{ height: 'calc(100% - 80px)', width: '100%' }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {selectedDelivery && (
+                  <>
+                    <Marker position={[selectedDelivery.route.quarry.lat, selectedDelivery.route.quarry.lng]}>
+                      <Popup>Quarry</Popup>
+                    </Marker>
+                    <Marker position={[selectedDelivery.route.well.lat, selectedDelivery.route.well.lng]}>
+                      <Popup>Your Well: {selectedDelivery.route.well.name}</Popup>
+                    </Marker>
+                    {selectedDelivery.gpsTrack && selectedDelivery.gpsTrack.length > 0 && (
+                      <Polyline
+                        positions={selectedDelivery.gpsTrack.map((point) => [point.lat, point.lng] as [number, number])}
+                        color="blue"
+                        weight={3}
+                      />
+                    )}
+                  </>
+                )}
+              </MapContainer>
+            ) : (
+              <Box
+                sx={{
+                  height: 'calc(100% - 80px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  px: 2,
+                }}
+              >
+                <Typography color="text.secondary" align="center">
+                  {t('portal.mapOnlyDelivery')}
+                </Typography>
+              </Box>
+            )}
           </Paper>
         </Grid>
 
@@ -134,37 +282,45 @@ const CustomerPortalPage: React.FC = () => {
           <Card sx={{ mb: 2 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                My Orders
+                {t('modules.orders.title')}
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Order</TableCell>
-                      <TableCell>Status</TableCell>
+                      <TableCell>{t('modules.orders.orderNumber')}</TableCell>
+                      <TableCell>{t('modules.orders.fulfillmentType')}</TableCell>
+                      <TableCell>{t('common.status')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {customerOrders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={2} align="center">
-                          <Typography color="textSecondary">No orders found</Typography>
+                        <TableCell colSpan={3} align="center">
+                          <Typography color="textSecondary">{t('common.noData')}</Typography>
                         </TableCell>
                       </TableRow>
                     ) : (
                       customerOrders.map((order) => (
                         <TableRow
                           key={order.id}
-                          selected={selectedDelivery?.orderId === order.id}
-                          onClick={() => {
-                            const delivery = deliveries.find(d => d.orderId === order.id);
-                            if (delivery) setSelectedDelivery(delivery);
-                          }}
+                          selected={selectedOrderId === order.id}
+                          onClick={() => setSelectedOrderId(order.id)}
                           sx={{ cursor: 'pointer' }}
                         >
                           <TableCell>{order.orderNumber}</TableCell>
                           <TableCell>
-                            <Chip label={order.status} size="small" />
+                            <Chip
+                              size="small"
+                              label={
+                                order.fulfillmentType === 'pickup'
+                                  ? t('modules.orders.fulfillmentShortPickup')
+                                  : t('modules.orders.fulfillmentShortDelivery')
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={getOrderStatusLabel(order, t)} size="small" />
                           </TableCell>
                         </TableRow>
                       ))
@@ -176,39 +332,176 @@ const CustomerPortalPage: React.FC = () => {
           </Card>
         </Grid>
 
-        {selectedDelivery && (
+        {selectedOrder && (
           <Grid item xs={12}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Delivery Details: {selectedDelivery.orderNumber}
+                {t('portal.timeline')}: {selectedOrder.orderNumber}
               </Typography>
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} md={6}>
-                  <Typography><strong>Truck:</strong> {selectedDelivery.truckLicensePlate}</Typography>
-                  <Typography><strong>Driver:</strong> {selectedDelivery.driverName}</Typography>
-                  {selectedDelivery.eta && (
-                    <Typography><strong>ETA:</strong> {new Date(selectedDelivery.eta).toLocaleString()}</Typography>
-                  )}
+              <Divider sx={{ mb: 2 }} />
+
+              {selectedOrder.fulfillmentType === 'pickup' ? (
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      {t('portal.pickupDetails')}
+                    </Typography>
+                    <Typography>
+                      <strong>{t('modules.pickup.pickupLocation')}:</strong>{' '}
+                      {selectedOrder.pickupLocation || selectedOrder.deliveryLocation || '—'}
+                    </Typography>
+                    {selectedOrder.pickupAddress && (
+                      <Typography variant="body2">{selectedOrder.pickupAddress}</Typography>
+                    )}
+                    {(selectedOrder.pickupWindowStart || selectedOrder.pickupWindowEnd) && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {selectedOrder.pickupWindowStart &&
+                          new Date(selectedOrder.pickupWindowStart).toLocaleString()}
+                        {selectedOrder.pickupWindowStart && selectedOrder.pickupWindowEnd ? ' – ' : ''}
+                        {selectedOrder.pickupWindowEnd &&
+                          new Date(selectedOrder.pickupWindowEnd).toLocaleString()}
+                      </Typography>
+                    )}
+                    {selectedOrder.pickupInstructions && (
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {selectedOrder.pickupInstructions}
+                      </Typography>
+                    )}
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    {selectedOrder.pickupRelease ? (
+                      <>
+                        <Typography variant="subtitle2" color="text.secondary">
+                          {t('portal.pickupCompleted')}
+                        </Typography>
+                        <Typography>
+                          {t('portal.releasedAt')}:{' '}
+                          {new Date(selectedOrder.pickupRelease.releasedAt).toLocaleString()}
+                        </Typography>
+                        <Typography>
+                          {t('portal.netWeight')}:{' '}
+                          {(
+                            selectedOrder.pickupRelease.loadedWeightTons -
+                            selectedOrder.pickupRelease.emptyWeightTons
+                          ).toFixed(2)}
+                        </Typography>
+                        <Typography>
+                          {t('portal.driver')}: {selectedOrder.pickupRelease.driverName} (
+                          {maskId(selectedOrder.pickupRelease.driverIdDocument)})
+                        </Typography>
+                      </>
+                    ) : (
+                      <Alert severity="info">{t('orderStatus.ready')}</Alert>
+                    )}
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography><strong>Status:</strong> {selectedDelivery.status}</Typography>
-                  <Typography><strong>Checkpoints:</strong> {selectedDelivery.checkpoints.length}/12</Typography>
-                  {selectedDelivery.signature && (
-                    <Typography><strong>Signed by:</strong> {selectedDelivery.signature.signerName}</Typography>
-                  )}
+              ) : (
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <List dense>
+                      <ListItem>
+                        <ListItemText
+                          primary={t('portal.orderPlaced')}
+                          secondary={new Date(selectedOrder.createdAt).toLocaleString()}
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemText
+                          primary={t('portal.inProgress')}
+                          secondary={getOrderStatusLabel(selectedOrder, t)}
+                        />
+                      </ListItem>
+                      {deliveryForSelected && (
+                        <>
+                          <ListItem>
+                            <ListItemText
+                              primary={t('modules.logistics.truck')}
+                              secondary={deliveryForSelected.truckLicensePlate}
+                            />
+                          </ListItem>
+                          <ListItem>
+                            <ListItemText
+                              primary={t('modules.logistics.driver')}
+                              secondary={deliveryForSelected.driverName}
+                            />
+                          </ListItem>
+                          {deliveryForSelected.actualArrival && (
+                            <ListItem>
+                              <ListItemText
+                                primary={t('portal.shippedDelivered')}
+                                secondary={new Date(deliveryForSelected.actualArrival).toLocaleString()}
+                              />
+                            </ListItem>
+                          )}
+                        </>
+                      )}
+                    </List>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12}>
-                  <Button variant="outlined" sx={{ mr: 1 }}>Download Certificate</Button>
-                  <Button variant="outlined">Download Traceability Report</Button>
-                </Grid>
-              </Grid>
+              )}
             </Paper>
           </Grid>
         )}
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              {t('portal.invoices')}
+              {invoicesLoading && selectedCustomerId ? (
+                <Chip size="small" label={t('common.loading')} sx={{ ml: 1 }} />
+              ) : null}
+            </Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t('modules.billing.invoiceNumber')}</TableCell>
+                    <TableCell>{t('modules.orders.orderNumber')}</TableCell>
+                    <TableCell>{t('modules.billing.issueDate')}</TableCell>
+                    <TableCell align="right">{t('modules.billing.total')}</TableCell>
+                    <TableCell>{t('common.status')}</TableCell>
+                    <TableCell>{t('common.actions')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {invoices.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        {t('common.noData')}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    invoices.map((inv) => (
+                      <TableRow key={inv.id}>
+                        <TableCell>{inv.invoiceNumber}</TableCell>
+                        <TableCell>{inv.orderNumber}</TableCell>
+                        <TableCell>{new Date(inv.issueDate).toLocaleDateString()}</TableCell>
+                        <TableCell align="right">${inv.total.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Chip size="small" label={t(`paymentStatus.${inv.paymentStatus}`)} />
+                        </TableCell>
+                        <TableCell>
+                          {inv.invoicePdfStoragePath ? (
+                            <Button size="small" onClick={() => handleDownloadInvoice(inv)}>
+                              {t('portal.downloadInvoice')}
+                            </Button>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">
+                              {t('portal.noInvoicePdf')}
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Grid>
       </Grid>
     </Box>
   );
 };
 
 export default CustomerPortalPage;
-

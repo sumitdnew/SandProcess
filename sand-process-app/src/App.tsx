@@ -21,6 +21,7 @@ import InventoryManagerPage from './pages/InventoryManagerPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import RulesPage from './pages/RulesPage';
 import TasksPage from './pages/TasksPage';
+import PickupReleasePage from './pages/PickupReleasePage';
 
 const HomeRoute: React.FC = () => {
   const { currentRole } = useApp();
@@ -55,6 +56,7 @@ function App() {
               <Route path="/approvals" element={<ApprovalsPage />} />
               <Route path="/rules" element={<RulesPage />} />
               <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/pickup-release" element={<PickupReleasePage />} />
             </Routes>
           </MainLayout>
         </BrowserRouter>

@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { QCTest } from '../types';
+import i18n from '../i18n/config';
 
 interface CertificateData {
   test: QCTest;
@@ -11,16 +12,19 @@ interface CertificateData {
   };
 }
 
+const pdf = (key: string) => i18n.t(`modules.quality.pdf.${key}`);
+
 export const generateQCCertificatePDF = (data: CertificateData) => {
   const { test, companyInfo } = data;
   const doc = new jsPDF();
-  
+
+  const locale = i18n.language?.split('-')[0] === 'es' ? 'es-AR' : 'en-US';
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text
   const addText = (text: string, x: number, fontSize: number = 12, style: 'normal' | 'bold' = 'normal') => {
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', style);
@@ -28,78 +32,78 @@ export const generateQCCertificatePDF = (data: CertificateData) => {
     yPosition += fontSize * 0.5;
   };
 
-  // Helper function to add line
   const addLine = () => {
     doc.setDrawColor(200, 200, 200);
     doc.line(margin, yPosition, pageWidth - margin, yPosition);
     yPosition += 5;
   };
 
-  // Add border
-  doc.setDrawColor(25, 118, 210); // Primary blue
+  doc.setDrawColor(25, 118, 210);
   doc.setLineWidth(1);
   doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
 
-  // Add watermark (optional)
   doc.setTextColor(240, 240, 240);
   doc.setFontSize(60);
   doc.setFont('helvetica', 'bold');
-  doc.text('CERTIFIED', pageWidth / 2, pageHeight / 2, { 
+  doc.text(pdf('watermarkCertified'), pageWidth / 2, pageHeight / 2, {
     align: 'center',
-    angle: 45 
+    angle: 45,
   });
-  doc.setTextColor(0, 0, 0); // Reset to black
+  doc.setTextColor(0, 0, 0);
 
-  // Header
   yPosition = 25;
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(25, 118, 210); // Primary blue
-  doc.text('QUALITY CONTROL CERTIFICATE', pageWidth / 2, yPosition, { align: 'center' });
+  doc.setTextColor(25, 118, 210);
+  doc.text(pdf('title'), pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 10;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text('Sand Processing & Quality Assurance', pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(pdf('subtitle'), pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 15;
 
-  doc.setTextColor(0, 0, 0); // Reset to black
+  doc.setTextColor(0, 0, 0);
 
-  // Certificate Number Box
-  doc.setFillColor(240, 248, 255); // Light blue background
+  doc.setFillColor(240, 248, 255);
   doc.rect(margin, yPosition, pageWidth - 2 * margin, 15, 'F');
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Certificate No: ${test.certificateId}`, pageWidth / 2, yPosition + 10, { align: 'center' });
+  doc.text(`${pdf('certificateNo')} ${test.certificateId}`, pageWidth / 2, yPosition + 10, { align: 'center' });
   yPosition += 25;
 
   addLine();
 
-  // Company Information
   yPosition += 5;
-  addText('ISSUED BY:', margin, 10, 'bold');
+  addText(pdf('issuedBy'), margin, 10, 'bold');
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   doc.text(companyInfo.name, margin, yPosition);
   yPosition += 5;
   doc.text(companyInfo.address, margin, yPosition);
   yPosition += 5;
-  doc.text(`Phone: ${companyInfo.phone} | Email: ${companyInfo.email}`, margin, yPosition);
+  doc.text(
+    i18n.t('modules.quality.pdf.phoneEmail', { phone: companyInfo.phone, email: companyInfo.email }),
+    margin,
+    yPosition
+  );
   yPosition += 10;
 
   addLine();
 
-  // Product Information
   yPosition += 5;
-  addText('PRODUCT INFORMATION', margin, 12, 'bold');
+  addText(pdf('productInformation'), margin, 12, 'bold');
   yPosition += 3;
 
-  const productInfo = [
-    ['Product:', test.productName],
-    ['Lot Number:', test.lotNumber],
-    ['Test Date:', test.testDate ? new Date(test.testDate).toLocaleDateString() : 'N/A'],
-    ['Order Number:', test.orderNumber || 'Standalone Test'],
+  const productInfo: [string, string][] = [
+    [pdf('productLabel'), test.productName],
+    [pdf('lotNumberLabel'), test.lotNumber],
+    [
+      pdf('testDateLabel'),
+      test.testDate ? new Date(test.testDate).toLocaleDateString(locale) : pdf('na'),
+    ],
+    [pdf('orderNumberLabel'), test.orderNumber || pdf('standaloneTest')],
   ];
 
   doc.setFontSize(11);
@@ -114,55 +118,51 @@ export const generateQCCertificatePDF = (data: CertificateData) => {
   yPosition += 5;
   addLine();
 
-  // Test Results
   yPosition += 5;
-  addText('TEST RESULTS', margin, 12, 'bold');
+  addText(pdf('testResults'), margin, 12, 'bold');
   yPosition += 8;
 
-  // Table header
   doc.setFillColor(240, 248, 255);
   doc.rect(margin, yPosition - 6, pageWidth - 2 * margin, 10, 'F');
-  
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('Parameter', margin + 5, yPosition);
-  doc.text('Measured Value', margin + 80, yPosition);
-  doc.text('Specification', margin + 130, yPosition);
-  doc.text('Result', margin + 160, yPosition);
+  doc.text(pdf('colParameter'), margin + 5, yPosition);
+  doc.text(pdf('colMeasuredValue'), margin + 80, yPosition);
+  doc.text(pdf('colSpecification'), margin + 130, yPosition);
+  doc.text(pdf('colResult'), margin + 160, yPosition);
   yPosition += 8;
 
-  // Table rows
   if (test.results) {
     const results = [
       {
-        parameter: 'Mesh Size',
+        parameter: pdf('paramMeshSize'),
         value: test.results.meshSize.value,
-        spec: test.results.meshSize.value, // Should come from product spec
+        spec: test.results.meshSize.value,
         passed: test.results.meshSize.passed,
       },
       {
-        parameter: 'Purity (%)',
+        parameter: pdf('paramPurity'),
         value: test.results.purity.value.toFixed(2) + '%',
-        spec: '≥ 95%',
+        spec: pdf('specPurity'),
         passed: test.results.purity.passed,
       },
       {
-        parameter: 'Roundness',
+        parameter: pdf('paramRoundness'),
         value: test.results.roundness.value.toFixed(2),
-        spec: '≥ 0.80',
+        spec: pdf('specRoundness'),
         passed: test.results.roundness.passed,
       },
       {
-        parameter: 'Moisture (%)',
+        parameter: pdf('paramMoisture'),
         value: test.results.moisture.value.toFixed(2) + '%',
-        spec: '≤ 1.0%',
+        spec: pdf('specMoisture'),
         passed: test.results.moisture.passed,
       },
     ];
 
     doc.setFont('helvetica', 'normal');
     results.forEach((result, index) => {
-      // Alternate row background
       if (index % 2 === 1) {
         doc.setFillColor(250, 250, 250);
         doc.rect(margin, yPosition - 6, pageWidth - 2 * margin, 8, 'F');
@@ -171,20 +171,19 @@ export const generateQCCertificatePDF = (data: CertificateData) => {
       doc.text(result.parameter, margin + 5, yPosition);
       doc.text(result.value, margin + 80, yPosition);
       doc.text(result.spec, margin + 130, yPosition);
-      
-      // Result with color
+
       if (result.passed) {
-        doc.setTextColor(46, 125, 50); // Green
+        doc.setTextColor(46, 125, 50);
         doc.setFont('helvetica', 'bold');
-        doc.text('PASS', margin + 160, yPosition);
+        doc.text(pdf('pass'), margin + 160, yPosition);
       } else {
-        doc.setTextColor(211, 47, 47); // Red
+        doc.setTextColor(211, 47, 47);
         doc.setFont('helvetica', 'bold');
-        doc.text('FAIL', margin + 160, yPosition);
+        doc.text(pdf('fail'), margin + 160, yPosition);
       }
-      doc.setTextColor(0, 0, 0); // Reset
+      doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
-      
+
       yPosition += 8;
     });
   }
@@ -192,73 +191,73 @@ export const generateQCCertificatePDF = (data: CertificateData) => {
   yPosition += 10;
   addLine();
 
-  // Overall Result
   yPosition += 5;
-  const allPassed = test.results && 
-    test.results.meshSize.passed && 
-    test.results.purity.passed && 
-    test.results.roundness.passed && 
+  const allPassed =
+    test.results &&
+    test.results.meshSize.passed &&
+    test.results.purity.passed &&
+    test.results.roundness.passed &&
     test.results.moisture.passed;
 
   if (allPassed) {
-    doc.setFillColor(232, 245, 233); // Light green
+    doc.setFillColor(232, 245, 233);
     doc.rect(margin, yPosition - 6, pageWidth - 2 * margin, 15, 'F');
-    doc.setTextColor(46, 125, 50); // Green
+    doc.setTextColor(46, 125, 50);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('✓ PRODUCT MEETS ALL QUALITY STANDARDS', pageWidth / 2, yPosition + 5, { align: 'center' });
+    doc.text(pdf('meetsStandards'), pageWidth / 2, yPosition + 5, { align: 'center' });
   } else {
-    doc.setFillColor(255, 235, 238); // Light red
+    doc.setFillColor(255, 235, 238);
     doc.rect(margin, yPosition - 6, pageWidth - 2 * margin, 15, 'F');
-    doc.setTextColor(211, 47, 47); // Red
+    doc.setTextColor(211, 47, 47);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('✗ PRODUCT DOES NOT MEET QUALITY STANDARDS', pageWidth / 2, yPosition + 5, { align: 'center' });
+    doc.text(pdf('notMeetStandards'), pageWidth / 2, yPosition + 5, { align: 'center' });
   }
-  
-  doc.setTextColor(0, 0, 0); // Reset
+
+  doc.setTextColor(0, 0, 0);
   yPosition += 25;
 
-  // Signature section
   yPosition += 10;
   addLine();
   yPosition += 10;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  
-  // QC Technician signature
-  doc.text('QC Technician:', margin, yPosition);
+
+  doc.text(pdf('qcTechnician'), margin, yPosition);
   doc.line(margin + 50, yPosition, margin + 100, yPosition);
   yPosition += 5;
   doc.setFontSize(8);
-  doc.text('Signature & Date', margin + 50, yPosition);
-  
-  // QC Manager signature
+  doc.text(pdf('signatureDate'), margin + 50, yPosition);
+
   doc.setFontSize(10);
   yPosition -= 5;
-  doc.text('QC Manager:', pageWidth - margin - 100, yPosition);
+  doc.text(pdf('qcManager'), pageWidth - margin - 100, yPosition);
   doc.line(pageWidth - margin - 50, yPosition, pageWidth - margin, yPosition);
   yPosition += 5;
   doc.setFontSize(8);
-  doc.text('Signature & Date', pageWidth - margin - 50, yPosition);
+  doc.text(pdf('signatureDate'), pageWidth - margin - 50, yPosition);
 
   yPosition += 15;
 
-  // Footer
   yPosition = pageHeight - 30;
   addLine();
   yPosition += 5;
-  
+
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text('This certificate is valid only for the lot number specified above.', pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(pdf('footer1'), pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 4;
-  doc.text('Certificate generated electronically and is valid without signature.', pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(pdf('footer2'), pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 4;
-  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, yPosition, { align: 'center' });
+  doc.text(
+    `${pdf('generated')} ${new Date().toLocaleString(locale)}`,
+    pageWidth / 2,
+    yPosition,
+    { align: 'center' }
+  );
 
-  // Download
   doc.save(`QC-Certificate-${test.certificateId}.pdf`);
 };
 

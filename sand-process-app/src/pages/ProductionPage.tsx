@@ -76,6 +76,7 @@ const ProductionPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async (opts?: { silent?: boolean }) => {
@@ -99,7 +100,7 @@ const ProductionPage: React.FC = () => {
       setProductionOrders(production);
     } catch (err: any) {
       console.error('Error loading production data:', err);
-      setError(err.message || 'Failed to load production data');
+      setError(err.message || t('modules.production.errorLoadingProduction'));
     } finally {
       if (!opts?.silent) setLoading(false);
     }
@@ -109,7 +110,7 @@ const ProductionPage: React.FC = () => {
     return [
       {
         id: `${order.id}-drying`,
-        name: 'Drying (Secado)',
+        name: t('modules.production.drying'),
         key: 'drying',
         completed: order.status !== 'pending' && order.status !== 'confirmed',
         inProgress: order.status === 'confirmed',
@@ -117,7 +118,7 @@ const ProductionPage: React.FC = () => {
       },
       {
         id: `${order.id}-sieving`,
-        name: 'Sieving (Tamizado)',
+        name: t('modules.production.sieving'),
         key: 'sieving',
         completed: order.status === 'in_production' || order.status === 'qc' || order.status === 'ready',
         inProgress: order.status === 'in_production',
@@ -133,7 +134,7 @@ const ProductionPage: React.FC = () => {
       },
       {
         id: `${order.id}-qc`,
-        name: 'QC Testing',
+        name: t('modules.production.stages.qc'),
         key: 'qc',
         completed: order.status === 'ready',
         inProgress: order.status === 'qc',
@@ -148,7 +149,7 @@ const ProductionPage: React.FC = () => {
       loadData();
     } catch (err: any) {
       console.error('Error updating production stage:', err);
-      alert('Error updating stage: ' + err.message);
+      alert(t('modules.production.errorUpdatingStage') + ': ' + err.message);
     }
   };
 
@@ -426,7 +427,7 @@ const ProductionPage: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               {order.status === 'in_production' && (
-                                <Tooltip title="Send to QC">
+                                <Tooltip title={t('modules.production.sendToQC')}>
                                   <IconButton
                                     size="small"
                                     color="warning"
@@ -717,8 +718,8 @@ const ProductionPage: React.FC = () => {
               label={t('modules.production.location')}
               onChange={(e) => setProduceLocation(e.target.value)}
             >
-              <MenuItem value="Cantera Principal">Cantera Principal</MenuItem>
-              <MenuItem value="Near-well warehouse">Near-well warehouse</MenuItem>
+              <MenuItem value="Cantera Principal">{t('modules.production.quarryPrincipal')}</MenuItem>
+              <MenuItem value="Near-well warehouse">{t('modules.production.nearWellWarehouse')}</MenuItem>
             </Select>
           </FormControl>
           <TextField

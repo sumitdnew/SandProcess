@@ -25,6 +25,7 @@ import AssignmentTurnedInIcon from '@mui/icons-material/AssignmentTurnedIn';
 import HowToReg from '@mui/icons-material/HowToReg';
 import Rule from '@mui/icons-material/Rule';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 
 interface NavItem {
   path: string;
@@ -48,7 +49,7 @@ const Navigation: React.FC = () => {
     },
     {
       path: '/tasks',
-      label: 'Tasks',
+      label: t('common.tasks'),
       icon: <AssignmentIcon />,
       roles: ['admin', 'dispatcher', 'driver', 'qc_technician', 'operations_manager', 'jefatura', 'inventory_manager', 'accounting_manager'],
     },
@@ -66,7 +67,7 @@ const Navigation: React.FC = () => {
     },
     {
       path: '/dispatcher',
-      label: 'Dispatcher',
+      label: t('common.dispatcher'),
       icon: <AssignmentTurnedInIcon />,
       roles: ['admin', 'dispatcher'],
     },
@@ -78,7 +79,7 @@ const Navigation: React.FC = () => {
     },
     {
       path: '/rules',
-      label: 'Rules',
+      label: t('common.rules'),
       icon: <Rule />,
       roles: ['admin', 'operations_manager', 'jefatura'],
     },
@@ -107,6 +108,12 @@ const Navigation: React.FC = () => {
       roles: ['admin', 'dispatcher'],
     },
     {
+      path: '/pickup-release',
+      label: t('modules.pickup.navLabel'),
+      icon: <StorefrontIcon />,
+      roles: ['admin', 'dispatcher', 'inventory_manager'],
+    },
+    {
       path: '/production',
       label: t('common.production'),
       icon: <FactoryIcon />,
@@ -120,13 +127,13 @@ const Navigation: React.FC = () => {
     },
     {
       path: '/msas',
-      label: 'MSAs',
+      label: t('common.msas'),
       icon: <DescriptionIcon />,
       roles: ['admin'],
     },
     {
       path: '/customers',
-      label: 'Customers',
+      label: t('common.customers'),
       icon: <BusinessIcon />,
       roles: ['admin'],
     },

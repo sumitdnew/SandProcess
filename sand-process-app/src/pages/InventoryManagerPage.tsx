@@ -169,10 +169,10 @@ const InventoryManagerPage: React.FC = () => {
     <Box>
       <PageHeader
         title={t('common.inventory')}
-        subtitle="Track production and inventory levels. Use recommendations to maintain appropriate stock at each location (quarry, near-well)."
+        subtitle={t('modules.inventory.trackSubtitle')}
         action={
           <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
-            Refresh
+            {t('common.refresh')}
           </Button>
         }
       />

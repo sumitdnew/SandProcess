@@ -27,6 +27,7 @@ import { Add as AddIcon, ArrowForward as NextStepIcon, Search as SearchIcon } fr
 import { ordersApi } from '../services/api';
 import { Order, OrderStatus } from '../types';
 import CreateOrderForm from '../components/orders/CreateOrderForm';
+import { getOrderStatusLabel } from '../utils/orderStatusLabel';
 
 const OrdersPage: React.FC = () => {
   const { t } = useTranslation();
@@ -118,10 +119,12 @@ const OrdersPage: React.FC = () => {
     return statusFlow[currentStatus] || null;
   };
 
-  const getNextStatusLabel = (currentStatus: OrderStatus): string => {
+  const getNextStatusLabel = (currentStatus: OrderStatus, order: Order): string => {
     const nextStatus = getNextStatus(currentStatus);
     if (!nextStatus) return '';
-    
+    if (currentStatus === 'dispatched' && (order.fulfillmentType || 'delivery') === 'pickup') {
+      return t('modules.orders.workflow.markPickedUp');
+    }
     const labels: Record<OrderStatus, string> = {
       pending: t('modules.orders.workflow.confirm'),
       confirmed: t('modules.orders.workflow.startProduction'),
@@ -233,6 +236,7 @@ const OrdersPage: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell>{t('modules.orders.orderNumber')}</TableCell>
+              <TableCell>{t('modules.orders.fulfillmentType')}</TableCell>
               <TableCell>{t('modules.orders.customer')}</TableCell>
               <TableCell>{t('modules.orders.deliveryDate')}</TableCell>
               <TableCell>{t('modules.orders.totalAmount')}</TableCell>
@@ -275,13 +279,25 @@ const OrdersPage: React.FC = () => {
                       )}
                     </Box>
                   </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={
+                        (order.fulfillmentType || 'delivery') === 'pickup'
+                          ? t('modules.orders.fulfillmentShortPickup')
+                          : t('modules.orders.fulfillmentShortDelivery')
+                      }
+                      color={(order.fulfillmentType || 'delivery') === 'pickup' ? 'secondary' : 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
                   <TableCell>{order.customerName || t('modules.orders.unknown')}</TableCell>
                   <TableCell>{new Date(order.deliveryDate).toLocaleDateString()}</TableCell>
                   <TableCell>${order.totalAmount.toLocaleString()}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       <Chip
-                        label={t(`orderStatus.${order.status}`)}
+                        label={getOrderStatusLabel(order, t)}
                         color={getStatusColor(order.status) as any}
                         size="small"
                       />
@@ -322,7 +338,7 @@ const OrdersPage: React.FC = () => {
                             }
                           }}
                         >
-                          {getNextStatusLabel(order.status)}
+                          {getNextStatusLabel(order.status, order)}
                         </Button>
                       )}
                     </Box>
@@ -349,16 +365,69 @@ const OrdersPage: React.FC = () => {
                   {selectedOrder.msaId ? (
                     <Chip label="MSA Order" size="small" color="primary" sx={{ ml: 1 }} />
                   ) : (
-                    <Chip label="Standalone Purchase Order (PO)" size="small" sx={{ ml: 1 }} />
+                    <Chip label={t('pages.standalonePO')} size="small" sx={{ ml: 1 }} />
                   )}
                 </Typography>
               </Grid>
               <Grid item xs={12}>
-                <Typography><strong>{t('modules.orders.deliveryDate')}:</strong> {new Date(selectedOrder.deliveryDate).toLocaleDateString()}</Typography>
+                <Typography component="span"><strong>{t('modules.orders.fulfillmentType')}:</strong> </Typography>
+                <Chip
+                  size="small"
+                  label={
+                    (selectedOrder.fulfillmentType || 'delivery') === 'pickup'
+                      ? t('modules.orders.fulfillmentPickup')
+                      : t('modules.orders.fulfillmentDelivery')
+                  }
+                  color={(selectedOrder.fulfillmentType || 'delivery') === 'pickup' ? 'secondary' : 'default'}
+                  sx={{ ml: 1 }}
+                />
               </Grid>
               <Grid item xs={12}>
-                <Typography><strong>Delivery Location:</strong> {selectedOrder.deliveryLocation}</Typography>
+                <Typography><strong>{t('modules.orders.deliveryDate')}:</strong> {new Date(selectedOrder.deliveryDate).toLocaleDateString()}</Typography>
               </Grid>
+              {(selectedOrder.fulfillmentType || 'delivery') === 'pickup' ? (
+                <>
+                  <Grid item xs={12}>
+                    <Typography><strong>{t('modules.orders.pickupLocation')}:</strong> {selectedOrder.pickupLocation || selectedOrder.deliveryLocation}</Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography><strong>{t('modules.orders.pickupAddress')}:</strong> {selectedOrder.pickupAddress || selectedOrder.deliveryAddress}</Typography>
+                  </Grid>
+                  {selectedOrder.pickupWindowStart && (
+                    <Grid item xs={12} md={6}>
+                      <Typography><strong>{t('modules.orders.pickupWindowStart')}:</strong>{' '}
+                        {new Date(selectedOrder.pickupWindowStart).toLocaleString()}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {selectedOrder.pickupWindowEnd && (
+                    <Grid item xs={12} md={6}>
+                      <Typography><strong>{t('modules.orders.pickupWindowEnd')}:</strong>{' '}
+                        {new Date(selectedOrder.pickupWindowEnd).toLocaleString()}
+                      </Typography>
+                    </Grid>
+                  )}
+                  {selectedOrder.pickupInstructions && (
+                    <Grid item xs={12}>
+                      <Typography><strong>{t('modules.orders.pickupInstructions')}:</strong> {selectedOrder.pickupInstructions}</Typography>
+                    </Grid>
+                  )}
+                  {selectedOrder.orderWeightTons != null && (
+                    <Grid item xs={12}>
+                      <Typography><strong>{t('modules.orders.orderWeightTons')}:</strong> {selectedOrder.orderWeightTons}</Typography>
+                    </Grid>
+                  )}
+                </>
+              ) : (
+                <Grid item xs={12}>
+                  <Typography><strong>{t('forms.orderForm.deliveryLocation')}:</strong> {selectedOrder.deliveryLocation}</Typography>
+                </Grid>
+              )}
+              {(selectedOrder.fulfillmentType || 'delivery') === 'delivery' && (
+              <Grid item xs={12}>
+                <Typography><strong>{t('forms.orderForm.deliveryAddress')}:</strong> {selectedOrder.deliveryAddress}</Typography>
+              </Grid>
+              )}
               <Grid item xs={12}>
                 <Typography><strong>Products:</strong></Typography>
                 {selectedOrder.products.map((p, idx) => (
@@ -370,7 +439,7 @@ const OrdersPage: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <Chip
-                  label={t(`orderStatus.${selectedOrder.status}`)}
+                  label={getOrderStatusLabel(selectedOrder, t)}
                   color={getStatusColor(selectedOrder.status) as any}
                 />
               </Grid>

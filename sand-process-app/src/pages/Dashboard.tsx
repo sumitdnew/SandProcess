@@ -84,7 +84,7 @@ interface ChartData {
 }
 
 const Dashboard: React.FC = () => {
-  useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { currentRole } = useApp();
   const [loading, setLoading] = useState(true);
@@ -114,7 +114,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
     testsData: QCTest[]
   ) => {
     // Revenue trend (last 6 months)
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const months = [t('pages.dashboard.jan', 'Jan'), t('pages.dashboard.feb', 'Feb'), t('pages.dashboard.mar', 'Mar'), t('pages.dashboard.apr', 'Apr'), t('pages.dashboard.may', 'May'), t('pages.dashboard.jun', 'Jun')];
     const revenueByMonth = months.map((month, index) => ({
       name: month,
       value: Math.floor(Math.random() * 50000) + 30000, // Mock data
@@ -338,7 +338,7 @@ const Dashboard: React.FC = () => {
 
   const formatTimeAgo = (date: Date) => {
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'Just now';
+    if (seconds < 60) return t('pages.dashboard.justNow');
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return `${Math.floor(seconds / 86400)}d ago`;
@@ -409,9 +409,9 @@ const Dashboard: React.FC = () => {
       {tasks.length > 0 && (
         <Paper sx={{ p: 2, mb: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">My tasks</Typography>
+            <Typography variant="h6">{t('pages.tasks.myTasks')}</Typography>
             <Button size="small" onClick={() => navigate('/tasks')} endIcon={<ArrowForwardIcon />}>
-              View all
+              {t('pages.tasks.viewAll')}
             </Button>
           </Box>
           <Grid container spacing={2}>
@@ -419,9 +419,9 @@ const Dashboard: React.FC = () => {
               <Grid item xs={12} sm={6} md={4} key={task.id}>
                 <Card variant="outlined" sx={{ cursor: 'pointer' }} onClick={() => navigate(task.link)}>
                   <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                    <Typography variant="subtitle2">{task.title}</Typography>
+                    <Typography variant="subtitle2">{t(`pages.tasks.taskTitles.${task.id}` as const) || task.title}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {task.count} {task.count === 1 ? 'task' : 'tasks'}
+                      {task.count} {task.count === 1 ? t('pages.tasks.task') : t('pages.tasks.tasks')}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -524,7 +524,7 @@ const Dashboard: React.FC = () => {
                     <Typography variant="body2" color="textSecondary">
                       {metrics.avgDeliveryTime > 0 
                         ? `Avg: ${metrics.avgDeliveryTime.toFixed(1)}h`
-                        : 'No data'
+                        : t('pages.dashboard.noData')
                       }
                     </Typography>
                   </Box>
@@ -571,7 +571,7 @@ const Dashboard: React.FC = () => {
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6">Revenue Trend</Typography>
-              <Chip label="Last 6 months" size="small" />
+              <Chip label={t('pages.dashboard.last6Months')} size="small" />
             </Box>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={revenueData}>
@@ -587,7 +587,7 @@ const Dashboard: React.FC = () => {
                   dataKey="value" 
                   stroke={COLORS.success} 
                   strokeWidth={3}
-                  name="Revenue"
+                  name={t('pages.dashboard.revenue')}
                   dot={{ fill: COLORS.success, r: 5 }}
                 />
               </LineChart>
@@ -646,7 +646,7 @@ const Dashboard: React.FC = () => {
                   <YAxis />
                   <RechartsTooltip />
                   <Legend />
-                  <Bar dataKey="value" fill={COLORS.primary} name="Quantity (tons)" />
+                  <Bar dataKey="value" fill={COLORS.primary} name={t('pages.dashboard.quantityTons')} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

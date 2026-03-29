@@ -154,6 +154,13 @@ export interface Database {
           notes: string | null;
           created_at: string;
           updated_at: string;
+          fulfillment_type?: string;
+          pickup_location?: string | null;
+          pickup_address?: string | null;
+          pickup_window_start?: string | null;
+          pickup_window_end?: string | null;
+          pickup_instructions?: string | null;
+          order_weight_tons?: number | null;
         };
         Insert: Omit<Database['public']['Tables']['orders']['Row'], 'id' | 'order_number' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['orders']['Insert']>;
@@ -252,6 +259,7 @@ export interface Database {
           days_outstanding: number;
           created_at: string;
           updated_at: string;
+          invoice_pdf_storage_path?: string | null;
         };
         Insert: Omit<Database['public']['Tables']['invoices']['Row'], 'id' | 'invoice_number' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['invoices']['Insert']>;
@@ -293,6 +301,26 @@ export interface Database {
         };
         Insert: Omit<Database['public']['Tables']['recommendation_rules']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['recommendation_rules']['Insert']>;
+      };
+      pickup_releases: {
+        Row: {
+          id: string;
+          order_id: string;
+          empty_weight_tons: number;
+          loaded_weight_tons: number;
+          driver_name: string;
+          driver_license_number: string | null;
+          driver_id_document: string | null;
+          truck_id: string | null;
+          vehicle_plate: string | null;
+          released_at: string;
+          released_by_user_id: string | null;
+          notes: string | null;
+          created_at: string;
+          document_storage_paths: Record<string, unknown>;
+        };
+        Insert: Omit<Database['public']['Tables']['pickup_releases']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['pickup_releases']['Insert']>;
       };
       redirect_requests: {
         Row: {

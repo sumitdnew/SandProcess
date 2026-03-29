@@ -53,6 +53,16 @@ import { qcTestsApi, ordersApi, productsApi, inventoryApi } from '../services/ap
 import { supabase } from '../config/supabase';
 import { useApp } from '../context/AppContext';
 import { QCTest, QCStatus, Order, Product } from '../types';
+import { generateQCCertificatePDF } from '../utils/generateQCCertificatePDF';
+import { getOrderStatusLabel } from '../utils/orderStatusLabel';
+
+/** Issuer block on QC certificate PDF */
+const QC_CERTIFICATE_COMPANY = {
+  name: 'Sand Process Management',
+  address: 'Vaca Muerta, Neuquén, Argentina',
+  phone: '+54 9 299 000-0000',
+  email: 'quality@sandprocess.com',
+};
 
 interface TestResults {
   meshSize: { value: string; passed: boolean; required: string };
@@ -63,6 +73,7 @@ interface TestResults {
 
 const QualityPage: React.FC = () => {
   const { t } = useTranslation();
+  const qcStatusLabel = (status: string) => t(`testStatus.${status}`);
   const { currentUser, currentRole } = useApp();
   const isQcTech = currentRole === 'qc_technician';
   const [tests, setTests] = useState<QCTest[]>([]);
@@ -107,8 +118,18 @@ const QualityPage: React.FC = () => {
     return icons[status] || <PendingIcon fontSize="small" />;
   };
 
+  /** Includes `pending` / `confirmed` so newly created orders (delivery or pickup) appear before production moves them. */
+  const isOrderVisibleForQc = (o: Order) =>
+    ['pending', 'confirmed', 'in_production', 'qc', 'ready', 'dispatched'].includes(o.status);
+
+  const fulfillmentLabel = (o: Order) =>
+    o.fulfillmentType === 'pickup'
+      ? t('modules.orders.fulfillmentShortPickup')
+      : t('modules.orders.fulfillmentShortDelivery');
+
   useEffect(() => {
     loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadData = async () => {
@@ -125,7 +146,7 @@ const QualityPage: React.FC = () => {
       setProducts(productsData);
     } catch (err: any) {
       console.error('Error loading QC data:', err);
-      setError(err.message || 'Failed to load QC data');
+      setError(err.message || t('modules.quality.failedToLoadQc'));
     } finally {
       setLoading(false);
     }
@@ -155,7 +176,7 @@ const QualityPage: React.FC = () => {
 
   const handleCreateTest = async () => {
     if (!testFormData.lotNumber || !testFormData.productId) {
-      alert('Please fill in all required fields (Lot Number and Product)');
+      alert(t('modules.quality.fillRequiredFields'));
       return;
     }
 
@@ -163,7 +184,7 @@ const QualityPage: React.FC = () => {
     
     const productId = testFormData.productId.trim();
     if (!productId || !uuidRegex.test(productId)) {
-      alert('Invalid product selected. Please select a product from the dropdown.');
+      alert(t('modules.quality.invalidProductSelected'));
       return;
     }
 
@@ -171,7 +192,7 @@ const QualityPage: React.FC = () => {
     if (testFormData.orderId && testFormData.orderId.trim() !== '') {
       const trimmedOrderId = testFormData.orderId.trim();
       if (!uuidRegex.test(trimmedOrderId)) {
-        alert('Invalid order selected. Please select an order from the dropdown.');
+        alert(t('modules.quality.invalidOrderSelected'));
         return;
       }
       orderId = trimmedOrderId;
@@ -202,10 +223,10 @@ const QualityPage: React.FC = () => {
       setActiveStep(0);
       loadData();
       
-      alert(`✓ Test created successfully!\nLot: ${testFormData.lotNumber}\n\nYou can now run the test.`);
+      alert(`✓ ${t('modules.quality.testCreatedSuccess')}\nLot: ${testFormData.lotNumber}`);
     } catch (err: any) {
       console.error('Error creating QC test:', err);
-      alert('Error creating test: ' + err.message);
+      alert(t('modules.quality.errorCreatingTest') + ': ' + err.message);
     }
   };
 
@@ -222,7 +243,7 @@ const QualityPage: React.FC = () => {
       loadData();
     } catch (err: any) {
       console.error('Error updating test:', err);
-      alert('Error: ' + err.message);
+      alert(t('errors.errorPrefix') + err.message);
     }
   };
 
@@ -276,7 +297,7 @@ const QualityPage: React.FC = () => {
 
     if (!allTestsPassed()) {
       const confirmReject = window.confirm(
-        'Not all tests passed. Do you want to REJECT this lot?\n\nClick OK to reject, Cancel to continue editing.'
+        t('modules.quality.rejectLotConfirm')
       );
       if (confirmReject) {
         await handleRejectTest(selectedTest.id);
@@ -349,13 +370,47 @@ const QualityPage: React.FC = () => {
       setSelectedTest(null);
       loadData();
       
-      const produceToInvMsg = !selectedTest.orderId && (selectedTest.quantity ?? 0) > 0
-        ? ` Inventory increased by ${selectedTest.quantity} tons at ${selectedTest.siteId === 'near_well' ? 'near-well' : 'quarry'}.`
-        : '';
-      alert(`✓ Test APPROVED!\n\nCertificate: ${certNumber}\n\n${selectedTest.orderId ? 'Certificate attached. Driver notified to pick up.' : 'Standalone test completed.' + produceToInvMsg}`);
+      const siteKey =
+        selectedTest.siteId === 'near_well' ? 'modules.quality.siteNearWell' : 'modules.quality.siteQuarry';
+      const produceToInvMsg =
+        !selectedTest.orderId && (selectedTest.quantity ?? 0) > 0
+          ? '\n\n' +
+            t('modules.quality.inventoryIncreasedAt', {
+              qty: selectedTest.quantity,
+              site: t(siteKey),
+            })
+          : '';
+      const body = selectedTest.orderId
+        ? t('modules.quality.testApprovedWithOrderBody')
+        : t('modules.quality.testApprovedStandaloneBody') + produceToInvMsg;
+      alert(
+        `${t('modules.quality.testApprovedTitle')}\n\n${t('modules.quality.testApprovedCertLine', { cert: certNumber })}\n\n${body}`
+      );
     } catch (err: any) {
       console.error('Error approving test:', err);
-      alert('Error: ' + err.message);
+      alert(t('errors.errorPrefix') + err.message);
+    }
+  };
+
+  const handleDownloadCertificate = (certificateId: string) => {
+    const test = tests.find((t) => t.certificateId === certificateId);
+    if (!test?.certificateId) {
+      alert(t('modules.quality.errorCertificateNotFound'));
+      return;
+    }
+    if (!test.results) {
+      alert(t('modules.quality.errorCertificateNoResults'));
+      return;
+    }
+    try {
+      generateQCCertificatePDF({
+        test,
+        companyInfo: QC_CERTIFICATE_COMPANY,
+      });
+    } catch (err: unknown) {
+      console.error('Certificate PDF error:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(t('modules.quality.errorCertificatePdf') + (msg ? `: ${msg}` : ''));
     }
   };
 
@@ -370,10 +425,10 @@ const QualityPage: React.FC = () => {
       setSelectedTest(null);
       loadData();
       
-      alert('✗ Test REJECTED\n\nLot cannot be dispatched.');
+      alert('✗ ' + t('modules.quality.testRejectedMessage'));
     } catch (err: any) {
       console.error('Error rejecting test:', err);
-      alert('Error: ' + err.message);
+      alert(t('errors.errorPrefix') + err.message);
     }
   };
 
@@ -410,7 +465,7 @@ const QualityPage: React.FC = () => {
             <Badge badgeContent={pendingTests.length} color="warning" sx={{ mr: 2 }}>
               <ScienceIcon />
             </Badge>
-            {pendingTests.length} pending tests • {certificates.length} certificates issued
+            {pendingTests.length} {t('modules.quality.pendingTestsCount')} • {certificates.length} {t('modules.quality.certificatesIssued')}
           </Typography>
           {isQcTech && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -431,7 +486,7 @@ const QualityPage: React.FC = () => {
             startIcon={<AddIcon />}
             onClick={() => handleOpenTestForm()}
           >
-            Create QC Test
+            {t('modules.quality.createQCTest')}
           </Button>
         </Box>
       </Box>
@@ -448,16 +503,18 @@ const QualityPage: React.FC = () => {
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                Orders Requiring QC Testing
+                {t('modules.quality.ordersRequiringQcTitle')}
               </Typography>
               <Chip 
-                label={`${orders.filter(o => o.status === 'qc' || o.status === 'in_production' || o.status === 'ready').length} orders`} 
+                label={t('modules.quality.ordersCountChip', {
+                  count: orders.filter(isOrderVisibleForQc).length,
+                })}
                 color="warning"
                 size="small"
               />
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Orders with a delivery need a QC test + certificate before the driver can pick up. &quot;Ready&quot; = assigned, awaiting cert.
+              {t('modules.quality.ordersRequiringQcHint')}
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
@@ -467,29 +524,33 @@ const QualityPage: React.FC = () => {
                   <TableRow>
                     <TableCell>{t('modules.quality.orderNumber')}</TableCell>
                     <TableCell>{t('modules.quality.customer')}</TableCell>
-                    <TableCell>Product</TableCell>
+                    <TableCell>{t('modules.quality.product')}</TableCell>
+                    <TableCell>{t('modules.orders.fulfillmentType')}</TableCell>
                     <TableCell>{t('modules.quality.orderStatus')}</TableCell>
                     <TableCell>{t('modules.quality.qcTestStatus')}</TableCell>
                     <TableCell align="right">{t('common.actions')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {orders.filter(o => o.status === 'qc' || o.status === 'in_production' || o.status === 'ready').length === 0 ? (
+                  {orders.filter(isOrderVisibleForQc).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                         <CheckCircleIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
                         <Typography variant="body1" color="textSecondary">
-                          All orders are either pending production or have passed QC
+                          {t('modules.quality.allOrdersQcOkMessage')}
                         </Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
                     orders
-                      .filter(o => o.status === 'qc' || o.status === 'in_production' || o.status === 'ready' || o.status === 'dispatched')
+                      .filter(isOrderVisibleForQc)
                       .map((order) => {
                         const orderTest = tests.find(t => t.orderId === order.id);
                         const hasCertificate = orderTest?.status === 'passed' && orderTest?.certificateId;
-                        const needsQC = order.status === 'qc' || (order.status === 'ready' && !hasCertificate);
+                        const needsQC =
+                          order.status === 'qc' ||
+                          (order.status === 'ready' && !hasCertificate) ||
+                          ((order.status === 'pending' || order.status === 'confirmed') && !hasCertificate);
                         
                         return (
                           <TableRow 
@@ -514,12 +575,24 @@ const QualityPage: React.FC = () => {
                             </TableCell>
                             <TableCell>
                               <Chip
-                                label={order.status}
+                                size="small"
+                                variant="outlined"
+                                label={fulfillmentLabel(order)}
+                                color={order.fulfillmentType === 'pickup' ? 'warning' : 'default'}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={getOrderStatusLabel(order, t)}
                                 size="small"
                                 color={
                                   order.status === 'qc' ? 'warning' : 
                                   order.status === 'in_production' ? 'info' :
-                                  order.status === 'ready' ? 'success' : 'default'
+                                  order.status === 'ready' ? 'success' :
+                                  order.status === 'pending' ? 'default' :
+                                  order.status === 'confirmed' ? 'info' :
+                                  order.status === 'dispatched' ? 'primary' :
+                                  'default'
                                 }
                               />
                             </TableCell>
@@ -533,14 +606,14 @@ const QualityPage: React.FC = () => {
                                 </Box>
                               ) : orderTest ? (
                                 <Chip 
-                                  label={orderTest.status} 
+                                  label={qcStatusLabel(orderTest.status)} 
                                   size="small" 
                                   color={getStatusColor(orderTest.status) as any}
                                   icon={getStatusIcon(orderTest.status)}
                                 />
                               ) : needsQC ? (
                                 <Chip 
-                                  label="QC Required" 
+                                  label={t('modules.quality.qcRequiredChip')} 
                                   size="small" 
                                   color="error"
                                   icon={<WarningIcon />}
@@ -565,7 +638,7 @@ const QualityPage: React.FC = () => {
                                     handleOpenTestForm(order.id, firstProduct.productId);
                                   }}
                                 >
-                                  {needsQC ? 'Create Test (URGENT)' : 'Create Test'}
+                                  {needsQC ? t('modules.quality.createTestUrgent') : t('modules.quality.createTest')}
                                 </Button>
                               ) : orderTest.status === 'pending' ? (
                                 <Button
@@ -575,7 +648,7 @@ const QualityPage: React.FC = () => {
                                   startIcon={<StartIcon />}
                                   onClick={() => handleRunTest(orderTest.id)}
                                 >
-                                  Run Test
+                                  {t('modules.quality.runTestButton')}
                                 </Button>
                               ) : orderTest.status === 'in_progress' ? (
                                 <Button
@@ -585,7 +658,7 @@ const QualityPage: React.FC = () => {
                                   startIcon={<ScienceIcon />}
                                   onClick={() => handleOpenResultsDialog(orderTest)}
                                 >
-                                  Enter Results
+                                  {t('modules.quality.enterResults')}
                                 </Button>
                               ) : hasCertificate ? (
                                 <Button
@@ -593,7 +666,7 @@ const QualityPage: React.FC = () => {
                                   startIcon={<CertificateIcon />}
                                   onClick={() => handleViewTest(orderTest)}
                                 >
-                                  View Certificate
+                                  {t('modules.quality.viewCertificate')}
                                 </Button>
                               ) : null}
                             </TableCell>
@@ -619,17 +692,17 @@ const QualityPage: React.FC = () => {
               <Box sx={{ textAlign: 'center', py: 8 }}>
                 <ScienceIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
                 <Typography variant="h6" color="textSecondary" gutterBottom>
-                  No QC Tests Yet
+                  {t('modules.quality.noTestsYetTitle')}
                 </Typography>
                 <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
-                  Create your first quality control test to get started
+                  {t('modules.quality.noTestsYetBody')}
                 </Typography>
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => handleOpenTestForm()}
                 >
-                  Create QC Test
+                  {t('modules.quality.createFirstQcTest')}
                 </Button>
               </Box>
             ) : (
@@ -637,15 +710,18 @@ const QualityPage: React.FC = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Lot Number</TableCell>
-                      <TableCell>Product</TableCell>
-                      <TableCell>Order</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Actions</TableCell>
+                      <TableCell>{t('modules.quality.testQueueColLot')}</TableCell>
+                      <TableCell>{t('modules.quality.product')}</TableCell>
+                      <TableCell>{t('modules.quality.testQueueColOrder')}</TableCell>
+                      <TableCell>{t('modules.orders.fulfillmentType')}</TableCell>
+                      <TableCell>{t('modules.quality.status')}</TableCell>
+                      <TableCell>{t('modules.quality.testQueueColActions')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {tests.map((test) => (
+                    {tests.map((test) => {
+                      const linkedOrder = test.orderId ? orders.find((o) => o.id === test.orderId) : undefined;
+                      return (
                       <TableRow 
                         key={test.id}
                         sx={{ 
@@ -664,18 +740,30 @@ const QualityPage: React.FC = () => {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Chip label={test.orderNumber} size="small" color="primary" />
                               {test.status === 'passed' && test.certificateId && (
-                                <Tooltip title="Certificate Generated">
+                                <Tooltip title={t('modules.quality.certificateGenerated')}>
                                   <CheckCircleIcon color="success" fontSize="small" />
                                 </Tooltip>
                               )}
                             </Box>
                           ) : (
-                            <Typography variant="body2" color="textSecondary">Standalone</Typography>
+                            <Typography variant="body2" color="textSecondary">{t('modules.quality.standaloneLabel')}</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {linkedOrder ? (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={fulfillmentLabel(linkedOrder)}
+                              color={linkedOrder.fulfillmentType === 'pickup' ? 'warning' : 'default'}
+                            />
+                          ) : (
+                            <Typography variant="body2" color="textSecondary">—</Typography>
                           )}
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={test.status}
+                            label={qcStatusLabel(test.status)}
                             color={getStatusColor(test.status) as any}
                             size="small"
                             icon={getStatusIcon(test.status)}
@@ -684,7 +772,7 @@ const QualityPage: React.FC = () => {
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <Button size="small" onClick={() => handleViewTest(test)}>
-                              View
+                              {t('modules.quality.view')}
                             </Button>
                             {test.status === 'pending' && (
                               <Button 
@@ -693,7 +781,7 @@ const QualityPage: React.FC = () => {
                                 color="primary"
                                 onClick={() => handleRunTest(test.id)}
                               >
-                                Run Test
+                                {t('modules.quality.runTestButton')}
                               </Button>
                             )}
                             {test.status === 'in_progress' && (
@@ -703,13 +791,14 @@ const QualityPage: React.FC = () => {
                                 color="success"
                                 onClick={() => handleOpenResultsDialog(test)}
                               >
-                                Enter Results
+                                {t('modules.quality.enterResults')}
                               </Button>
                             )}
                           </Box>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -721,7 +810,7 @@ const QualityPage: React.FC = () => {
         <Grid item xs={12} md={4}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Certificates Issued
+              {t('modules.quality.certificatesIssuedSection')}
             </Typography>
             <Divider sx={{ mb: 2 }} />
             
@@ -729,7 +818,7 @@ const QualityPage: React.FC = () => {
               <Box sx={{ textAlign: 'center', py: 4 }}>
                 <CertificateIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
                 <Typography variant="body2" color="textSecondary">
-                  No certificates issued yet
+                  {t('modules.quality.noCertificatesYet')}
                 </Typography>
               </Box>
             ) : (
@@ -747,7 +836,7 @@ const QualityPage: React.FC = () => {
                         {cert.productName}
                       </Typography>
                       <Typography variant="caption" display="block" color="textSecondary">
-                        Lot: {cert.lotNumber}
+                        {t('modules.quality.lotPrefix', { lot: cert.lotNumber })}
                       </Typography>
                       {cert.orderNumber && (
                         <Chip 
@@ -758,8 +847,12 @@ const QualityPage: React.FC = () => {
                       )}
                     </CardContent>
                     <CardActions sx={{ pt: 0 }}>
-                      <Button size="small" startIcon={<CertificateIcon />}>
-                        Download
+                      <Button
+                        size="small"
+                        startIcon={<CertificateIcon />}
+                        onClick={() => handleDownloadCertificate(cert.id)}
+                      >
+                        {t('modules.quality.downloadCertificate')}
                       </Button>
                     </CardActions>
                   </Card>
@@ -774,7 +867,7 @@ const QualityPage: React.FC = () => {
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>QC Test: {selectedTest?.lotNumber}</span>
+            <span>{t('modules.quality.qcTestDialogTitle', { lot: selectedTest?.lotNumber ?? '' })}</span>
             <IconButton onClick={handleCloseDialog} size="small">
               <CloseIcon />
             </IconButton>
@@ -784,13 +877,13 @@ const QualityPage: React.FC = () => {
           {selectedTest && (
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>Product</Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>{t('modules.quality.product')}</Typography>
                 <Typography variant="body1" gutterBottom>{selectedTest.productName}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>Status</Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>{t('modules.quality.status')}</Typography>
                 <Chip
-                  label={selectedTest.status}
+                  label={qcStatusLabel(selectedTest.status)}
                   color={getStatusColor(selectedTest.status) as any}
                   icon={getStatusIcon(selectedTest.status)}
                 />
@@ -799,7 +892,7 @@ const QualityPage: React.FC = () => {
                 <Grid item xs={12}>
                   <Alert severity="info" icon={<LinkIcon />}>
                     <Typography variant="body2">
-                      <strong>Linked to Order:</strong> {selectedTest.orderNumber}
+                      <strong>{t('modules.quality.linkedToOrderLabel')}</strong> {selectedTest.orderNumber}
                     </Typography>
                   </Alert>
                 </Grid>
@@ -807,28 +900,28 @@ const QualityPage: React.FC = () => {
               {selectedTest.certificateId && (
                 <Grid item xs={12}>
                   <Alert severity="success" icon={<CertificateIcon />}>
-                    <AlertTitle>Certificate Issued</AlertTitle>
+                    <AlertTitle>{t('modules.quality.certificateIssuedAlert')}</AlertTitle>
                     <Typography variant="body2">
-                      <strong>Certificate Number:</strong> {selectedTest.certificateId}
+                      <strong>{t('modules.quality.certificateNumberLabel')}</strong> {selectedTest.certificateId}
                     </Typography>
                   </Alert>
                 </Grid>
               )}
               {selectedTest.results && (
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" gutterBottom>Test Results:</Typography>
+                  <Typography variant="subtitle2" gutterBottom>{t('modules.quality.testResultsHeading')}</Typography>
                   <TableContainer component={Paper} variant="outlined">
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Parameter</TableCell>
-                          <TableCell>Value</TableCell>
-                          <TableCell>Result</TableCell>
+                          <TableCell>{t('modules.quality.tableParameter')}</TableCell>
+                          <TableCell>{t('modules.quality.tableValue')}</TableCell>
+                          <TableCell>{t('modules.quality.tableResult')}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         <TableRow>
-                          <TableCell>Mesh Size</TableCell>
+                          <TableCell>{t('modules.quality.paramMeshSize')}</TableCell>
                           <TableCell>{selectedTest.results.meshSize.value}</TableCell>
                           <TableCell>
                             {selectedTest.results.meshSize.passed ? 
@@ -838,7 +931,7 @@ const QualityPage: React.FC = () => {
                           </TableCell>
                         </TableRow>
                         <TableRow>
-                          <TableCell>Purity</TableCell>
+                          <TableCell>{t('modules.quality.paramPurityShort')}</TableCell>
                           <TableCell>{selectedTest.results.purity.value}%</TableCell>
                           <TableCell>
                             {selectedTest.results.purity.passed ? 
@@ -848,7 +941,7 @@ const QualityPage: React.FC = () => {
                           </TableCell>
                         </TableRow>
                         <TableRow>
-                          <TableCell>Roundness</TableCell>
+                          <TableCell>{t('modules.quality.paramRoundnessShort')}</TableCell>
                           <TableCell>{selectedTest.results.roundness.value}</TableCell>
                           <TableCell>
                             {selectedTest.results.roundness.passed ? 
@@ -858,7 +951,7 @@ const QualityPage: React.FC = () => {
                           </TableCell>
                         </TableRow>
                         <TableRow>
-                          <TableCell>Moisture</TableCell>
+                          <TableCell>{t('modules.quality.paramMoistureShort')}</TableCell>
                           <TableCell>{selectedTest.results.moisture.value}%</TableCell>
                           <TableCell>
                             {selectedTest.results.moisture.passed ? 
@@ -876,7 +969,16 @@ const QualityPage: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Close</Button>
+          {selectedTest?.certificateId && selectedTest?.results && (
+            <Button
+              variant="contained"
+              startIcon={<CertificateIcon />}
+              onClick={() => handleDownloadCertificate(selectedTest.certificateId!)}
+            >
+              {t('modules.quality.downloadCertificate')}
+            </Button>
+          )}
+          <Button onClick={handleCloseDialog}>{t('common.close')}</Button>
         </DialogActions>
       </Dialog>
 
@@ -884,7 +986,7 @@ const QualityPage: React.FC = () => {
       <Dialog open={openTestForm} onClose={() => setOpenTestForm(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Create QC Test</span>
+            <span>{t('modules.quality.createTestDialogTitle')}</span>
             <IconButton onClick={() => setOpenTestForm(false)} size="small">
               <CloseIcon />
             </IconButton>
@@ -893,10 +995,10 @@ const QualityPage: React.FC = () => {
         <DialogContent>
           <Stepper activeStep={activeStep} sx={{ mt: 2, mb: 3 }}>
             <Step>
-              <StepLabel>Test Details</StepLabel>
+              <StepLabel>{t('modules.quality.stepTestDetails')}</StepLabel>
             </Step>
             <Step>
-              <StepLabel>Link to Order</StepLabel>
+              <StepLabel>{t('modules.quality.stepLinkToOrder')}</StepLabel>
             </Step>
           </Stepper>
 
@@ -909,7 +1011,7 @@ const QualityPage: React.FC = () => {
                 onChange={(e) => setTestFormData({ ...testFormData, lotNumber: e.target.value })}
                 required
                 placeholder="LOT-2026-XXX"
-                helperText="Auto-generated, but you can customize"
+                helperText={t('modules.quality.autoGeneratedHint')}
               />
             </Grid>
             <Grid item xs={12}>
@@ -935,21 +1037,22 @@ const QualityPage: React.FC = () => {
               <TextField
                 select
                 fullWidth
-                label={t('modules.quality.order') + ' (Optional)'}
+                label={`${t('modules.quality.order')} ${t('modules.quality.orderOptional')}`}
                 value={testFormData.orderId}
                 onChange={(e) => setTestFormData({ ...testFormData, orderId: e.target.value })}
-                helperText={testFormData.orderId ? 'Certificate will be linked to this order' : 'Leave blank for standalone test'}
+                helperText={testFormData.orderId ? t('modules.quality.helperCertLinkedOrder') : t('modules.quality.helperStandaloneNoOrder')}
               >
                 <MenuItem value="">
-                  <em>None - Standalone Test</em>
+                  <em>{t('modules.quality.noneStandaloneTest')}</em>
                 </MenuItem>
                 {orders
-                  .filter(order => order.status === 'qc' || order.status === 'in_production' || order.status === 'ready')
+                  .filter(isOrderVisibleForQc)
                   .map((order) => {
                     const hasTest = tests.some(t => t.orderId === order.id && t.status === 'passed');
                     return (
                       <MenuItem key={order.id} value={order.id}>
-                        {order.orderNumber} - {order.customerName} {hasTest ? '(Has Certificate)' : '(Needs Certificate)'}
+                        {order.orderNumber} — {fulfillmentLabel(order)} — {order.customerName}{' '}
+                        {hasTest ? '(Has Certificate)' : '(Needs Certificate)'}
                       </MenuItem>
                     );
                   })}
@@ -958,14 +1061,14 @@ const QualityPage: React.FC = () => {
             {testFormData.orderId && (
               <Grid item xs={12}>
                 <Alert severity="info" icon={<InfoIcon />}>
-                  <AlertTitle>Order-Linked Test</AlertTitle>
+                  <AlertTitle>{t('modules.quality.orderLinkedAlertTitle')}</AlertTitle>
                   <Typography variant="body2">
-                    When approved, this test will:
+                    {t('modules.quality.whenApprovedIntro')}
                   </Typography>
                   <Box component="ul" sx={{ m: 0, mt: 1, pl: 2 }}>
-                    <li><Typography variant="body2">Generate a QC Certificate</Typography></li>
-                    <li><Typography variant="body2">Mark order as ready for dispatch</Typography></li>
-                    <li><Typography variant="body2">Allow truck assignment</Typography></li>
+                    <li><Typography variant="body2">{t('modules.quality.bulletGenerateCert')}</Typography></li>
+                    <li><Typography variant="body2">{t('modules.quality.bulletMarkReady')}</Typography></li>
+                    <li><Typography variant="body2">{t('modules.quality.bulletAllowTruck')}</Typography></li>
                   </Box>
                 </Alert>
               </Grid>
@@ -973,14 +1076,14 @@ const QualityPage: React.FC = () => {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
-          <Button onClick={() => setOpenTestForm(false)}>Cancel</Button>
+          <Button onClick={() => setOpenTestForm(false)}>{t('common.cancel')}</Button>
           <Button 
             onClick={handleCreateTest} 
             variant="contained"
             disabled={!testFormData.lotNumber || !testFormData.productId}
             size="large"
           >
-            Create Test
+            {t('modules.quality.createTest')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -989,7 +1092,7 @@ const QualityPage: React.FC = () => {
       <Dialog open={openResultsDialog} onClose={() => setOpenResultsDialog(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Enter Test Results - {selectedTest?.lotNumber}</span>
+            <span>{t('modules.quality.enterResultsDialogTitle', { lot: selectedTest?.lotNumber ?? '' })}</span>
             <IconButton onClick={() => setOpenResultsDialog(false)} size="small">
               <CloseIcon />
             </IconButton>
@@ -997,9 +1100,9 @@ const QualityPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Alert severity="info" sx={{ mb: 3, mt: 2 }}>
-            <AlertTitle>Quality Standards</AlertTitle>
+            <AlertTitle>{t('modules.quality.qualityStandardsTitle')}</AlertTitle>
             <Typography variant="body2">
-              Enter measured values for each parameter. Pass/fail will be calculated automatically.
+              {t('modules.quality.qualityStandardsBody')}
             </Typography>
           </Alert>
 
@@ -1010,7 +1113,7 @@ const QualityPage: React.FC = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Mesh Size Test
+                      {t('modules.quality.meshSizeTestTitle')}
                     </Typography>
                     {testResults.meshSize.passed ? 
                       <CheckCircleIcon color="success" /> : 
@@ -1019,12 +1122,12 @@ const QualityPage: React.FC = () => {
                   </Box>
                   <TextField
                     fullWidth
-                    label="Measured Mesh Size"
+                    label={t('modules.quality.measuredMeshSize')}
                     value={testResults.meshSize.value}
                     onChange={(e) => handleResultChange('meshSize', e.target.value)}
-                    placeholder="e.g., 30/50"
+                    placeholder={t('modules.quality.placeholderMeshExample')}
                     sx={{ mb: 2 }}
-                    helperText={`Required: ${testResults.meshSize.required}`}
+                    helperText={t('modules.quality.helperRequiredMesh', { value: testResults.meshSize.required })}
                   />
                   <FormControlLabel
                     control={
@@ -1034,7 +1137,7 @@ const QualityPage: React.FC = () => {
                         color="success"
                       />
                     }
-                    label={testResults.meshSize.passed ? "PASS ✓" : "Fail"}
+                    label={testResults.meshSize.passed ? t('modules.quality.passShort') : t('modules.quality.fail')}
                   />
                 </CardContent>
               </Card>
@@ -1046,7 +1149,7 @@ const QualityPage: React.FC = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Purity Test
+                      {t('modules.quality.purityTestTitle')}
                     </Typography>
                     {testResults.purity.passed ? 
                       <CheckCircleIcon color="success" /> : 
@@ -1056,12 +1159,12 @@ const QualityPage: React.FC = () => {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Purity (%)"
+                    label={t('modules.quality.purity')}
                     value={testResults.purity.value}
                     onChange={(e) => handleResultChange('purity', parseFloat(e.target.value) || 0)}
                     inputProps={{ min: 0, max: 100, step: 0.1 }}
                     sx={{ mb: 2 }}
-                    helperText={`Minimum required: ${testResults.purity.minRequired}%`}
+                    helperText={t('modules.quality.helperMinPurity', { value: testResults.purity.minRequired })}
                   />
                   <FormControlLabel
                     control={
@@ -1071,7 +1174,7 @@ const QualityPage: React.FC = () => {
                         color="success"
                       />
                     }
-                    label={testResults.purity.passed ? "PASS ✓" : "Fail"}
+                    label={testResults.purity.passed ? t('modules.quality.passShort') : t('modules.quality.fail')}
                   />
                 </CardContent>
               </Card>
@@ -1083,7 +1186,7 @@ const QualityPage: React.FC = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Roundness Test
+                      {t('modules.quality.roundnessTestTitle')}
                     </Typography>
                     {testResults.roundness.passed ? 
                       <CheckCircleIcon color="success" /> : 
@@ -1093,12 +1196,12 @@ const QualityPage: React.FC = () => {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Roundness Factor"
+                    label={t('modules.quality.roundnessFactor')}
                     value={testResults.roundness.value}
                     onChange={(e) => handleResultChange('roundness', parseFloat(e.target.value) || 0)}
                     inputProps={{ min: 0, max: 1, step: 0.01 }}
                     sx={{ mb: 2 }}
-                    helperText={`Minimum required: ${testResults.roundness.minRequired}`}
+                    helperText={t('modules.quality.helperMinRoundness', { value: testResults.roundness.minRequired })}
                   />
                   <FormControlLabel
                     control={
@@ -1108,7 +1211,7 @@ const QualityPage: React.FC = () => {
                         color="success"
                       />
                     }
-                    label={testResults.roundness.passed ? "PASS ✓" : "Fail"}
+                    label={testResults.roundness.passed ? t('modules.quality.passShort') : t('modules.quality.fail')}
                   />
                 </CardContent>
               </Card>
@@ -1120,7 +1223,7 @@ const QualityPage: React.FC = () => {
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="bold">
-                      Moisture Test
+                      {t('modules.quality.moistureTestTitle')}
                     </Typography>
                     {testResults.moisture.passed ? 
                       <CheckCircleIcon color="success" /> : 
@@ -1130,12 +1233,12 @@ const QualityPage: React.FC = () => {
                   <TextField
                     fullWidth
                     type="number"
-                    label="Moisture Content (%)"
+                    label={t('modules.quality.moistureContent')}
                     value={testResults.moisture.value}
                     onChange={(e) => handleResultChange('moisture', parseFloat(e.target.value) || 0)}
                     inputProps={{ min: 0, max: 10, step: 0.1 }}
                     sx={{ mb: 2 }}
-                    helperText={`Maximum allowed: ${testResults.moisture.maxRequired}%`}
+                    helperText={t('modules.quality.helperMaxMoisture', { value: testResults.moisture.maxRequired })}
                   />
                   <FormControlLabel
                     control={
@@ -1145,7 +1248,7 @@ const QualityPage: React.FC = () => {
                         color="success"
                       />
                     }
-                    label={testResults.moisture.passed ? "PASS ✓" : "Fail"}
+                    label={testResults.moisture.passed ? t('modules.quality.passShort') : t('modules.quality.fail')}
                   />
                 </CardContent>
               </Card>
@@ -1156,10 +1259,10 @@ const QualityPage: React.FC = () => {
               <Paper sx={{ p: 2, bgcolor: allTestsPassed() ? 'success.light' : 'warning.light' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="h6">
-                    Overall Result:
+                    {t('modules.quality.overallResult')}
                   </Typography>
                   <Chip 
-                    label={allTestsPassed() ? "ALL TESTS PASSED ✓" : "SOME TESTS FAILED"} 
+                    label={allTestsPassed() ? t('modules.quality.allTestsPassedChip') : t('modules.quality.someTestsFailedChip')} 
                     color={allTestsPassed() ? "success" : "warning"}
                     icon={allTestsPassed() ? <CheckCircleIcon /> : <WarningIcon />}
                   />
@@ -1173,7 +1276,7 @@ const QualityPage: React.FC = () => {
             onClick={() => setOpenResultsDialog(false)}
             startIcon={<CloseIcon />}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           {!allTestsPassed() && (
             <Button 
@@ -1186,7 +1289,7 @@ const QualityPage: React.FC = () => {
                 }
               }}
             >
-              Reject Lot
+              {t('modules.quality.rejectLotButton')}
             </Button>
           )}
           <Button 
@@ -1197,7 +1300,7 @@ const QualityPage: React.FC = () => {
             onClick={handleSaveResults}
             disabled={!allTestsPassed()}
           >
-            Approve & Generate Certificate
+            {t('modules.quality.approveGenerateCertificate')}
           </Button>
         </DialogActions>
       </Dialog>

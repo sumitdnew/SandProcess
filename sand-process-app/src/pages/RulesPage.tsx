@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -57,6 +58,7 @@ const ACTION_TYPES: { value: RuleActionType; label: string }[] = [
 ];
 
 const RulesPage: React.FC = () => {
+  const { t } = useTranslation();
   const { currentUser } = useApp();
   const [rules, setRules] = useState<Rule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,15 +198,15 @@ const RulesPage: React.FC = () => {
   return (
     <Box>
       <PageHeader
-        title="Recommendation rules"
-        subtitle="Configure rules that influence dispatcher recommendations (e.g. prefer warehouse, JIT-first)."
+        title={t('pages.rules.title')}
+        subtitle={t('pages.rules.subtitle')}
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
-              Refresh
+              {t('common.refresh')}
             </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
-              Add rule
+              {t('pages.rules.addRule')}
             </Button>
           </Box>
         }

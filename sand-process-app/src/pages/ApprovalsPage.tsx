@@ -129,7 +129,7 @@ const ApprovalsPage: React.FC = () => {
     <Box>
       <PageHeader
         title={t('modules.approvals.title')}
-        subtitle="Approve assignment and redirect requests from the dispatcher."
+        subtitle={t('pages.approvals.subtitle')}
         action={
           <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
             {t('common.refresh')}

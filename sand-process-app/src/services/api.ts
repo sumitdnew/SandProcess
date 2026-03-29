@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { Database } from '../config/supabase';
-import { Order, Customer, Product, MSA, Truck, Driver, Delivery, QCTest, Invoice, RecommendationOption, AssignmentPayload, AssignmentRequest, AssignmentRequestStatus, RecommendationSourceType, Rule, RuleCondition, RuleActionType, RedirectRequest, RedirectRequestStatus, InventoryRecommendation, InventoryRecommendationAction, TaskItem, UserRole } from '../types';
+import { Order, Customer, Product, MSA, Truck, Driver, Delivery, QCTest, Invoice, RecommendationOption, AssignmentPayload, AssignmentRequest, AssignmentRequestStatus, RecommendationSourceType, Rule, RuleCondition, RuleActionType, RedirectRequest, RedirectRequestStatus, InventoryRecommendation, InventoryRecommendationAction, TaskItem, UserRole, PickupRelease, FulfillmentType, PickupReleaseDocumentPaths } from '../types';
 
 type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 
@@ -173,7 +173,9 @@ export const ordersApi = {
       throw error;
     }
     if (!data || data.length === 0) return [];
-    return data.map(transformOrder);
+    const orders = data.map(transformOrder);
+    await attachPickupReleases(orders);
+    return orders;
   },
 
   getById: async (id: string): Promise<Order | null> => {
@@ -188,7 +190,10 @@ export const ordersApi = {
       .single();
     
     if (error) throw error;
-    return data ? transformOrder(data) : null;
+    if (!data) return null;
+    const o = transformOrder(data);
+    await attachPickupReleases([o]);
+    return o;
   },
 
   create: async (orderData: {
@@ -199,6 +204,13 @@ export const ordersApi = {
     deliveryAddress: string;
     products: Array<{ productId: string; quantity: number; unitPrice: number }>;
     notes?: string;
+    fulfillmentType?: FulfillmentType;
+    pickupLocation?: string;
+    pickupAddress?: string;
+    pickupWindowStart?: string;
+    pickupWindowEnd?: string;
+    pickupInstructions?: string;
+    orderWeightTons?: number;
   }): Promise<Order> => {
     // Generate order number
     const year = new Date().getFullYear();
@@ -215,20 +227,30 @@ export const ordersApi = {
       0
     );
 
+    const fulfillment = orderData.fulfillmentType || 'delivery';
+    const insertRow: Record<string, unknown> = {
+      order_number: orderNumber,
+      customer_id: orderData.customerId,
+      msa_id: orderData.msaId || null,
+      delivery_date: orderData.deliveryDate,
+      delivery_location: orderData.deliveryLocation,
+      delivery_address: orderData.deliveryAddress,
+      status: 'pending',
+      total_amount: totalAmount,
+      notes: orderData.notes || null,
+      fulfillment_type: fulfillment,
+      pickup_location: orderData.pickupLocation ?? null,
+      pickup_address: orderData.pickupAddress ?? null,
+      pickup_window_start: orderData.pickupWindowStart ?? null,
+      pickup_window_end: orderData.pickupWindowEnd ?? null,
+      pickup_instructions: orderData.pickupInstructions ?? null,
+      order_weight_tons: orderData.orderWeightTons ?? null,
+    };
+
     // Insert order
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        order_number: orderNumber,
-        customer_id: orderData.customerId,
-        msa_id: orderData.msaId || null,
-        delivery_date: orderData.deliveryDate,
-        delivery_location: orderData.deliveryLocation,
-        delivery_address: orderData.deliveryAddress,
-        status: 'pending',
-        total_amount: totalAmount,
-        notes: orderData.notes || null,
-      })
+      .insert(insertRow as any)
       .select()
       .single();
 
@@ -314,6 +336,12 @@ function transformOrder(row: any): Order {
       }));
     }
   }
+
+  let pickupRelease: PickupRelease | null | undefined = undefined;
+  if (row.pickup_releases) {
+    const pr = Array.isArray(row.pickup_releases) ? row.pickup_releases[0] : row.pickup_releases;
+    pickupRelease = pr ? transformPickupReleaseRow(pr) : null;
+  }
   
   return {
     id: row.id,
@@ -329,7 +357,119 @@ function transformOrder(row: any): Order {
     totalAmount: parseFloat(row.total_amount) || 0,
     createdAt: row.created_at,
     notes: row.notes,
+    fulfillmentType: (row.fulfillment_type as FulfillmentType) || 'delivery',
+    pickupLocation: row.pickup_location ?? undefined,
+    pickupAddress: row.pickup_address ?? undefined,
+    pickupWindowStart: row.pickup_window_start ?? undefined,
+    pickupWindowEnd: row.pickup_window_end ?? undefined,
+    pickupInstructions: row.pickup_instructions ?? undefined,
+    orderWeightTons: row.order_weight_tons != null ? Number(row.order_weight_tons) : undefined,
+    pickupRelease: pickupRelease === undefined ? undefined : pickupRelease,
   };
+}
+
+function parsePickupDocumentPaths(raw: unknown): PickupReleaseDocumentPaths | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const other = Array.isArray(o.other) ? o.other.filter((x): x is string => typeof x === 'string') : undefined;
+  const dni = typeof o.dni === 'string' ? o.dni : undefined;
+  const driverLicense = typeof o.driverLicense === 'string' ? o.driverLicense : undefined;
+  const has =
+    (dni && dni.length > 0) ||
+    (driverLicense && driverLicense.length > 0) ||
+    (other && other.length > 0);
+  if (!has) return null;
+  return {
+    dni: dni || undefined,
+    driverLicense: driverLicense || undefined,
+    other: other && other.length > 0 ? other : undefined,
+  };
+}
+
+function transformPickupReleaseRow(row: any): PickupRelease {
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    emptyWeightTons: Number(row.empty_weight_tons),
+    loadedWeightTons: Number(row.loaded_weight_tons),
+    driverName: row.driver_name,
+    driverLicenseNumber: row.driver_license_number ?? undefined,
+    driverIdDocument: row.driver_id_document ?? undefined,
+    truckId: row.truck_id ?? undefined,
+    vehiclePlate: row.vehicle_plate ?? undefined,
+    releasedAt: row.released_at,
+    releasedByUserId: row.released_by_user_id ?? undefined,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+    documentStoragePaths: parsePickupDocumentPaths(row.document_storage_paths),
+  };
+}
+
+const DOCUMENTS_BUCKET = 'documents';
+
+function sanitizePickupFileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200) || 'file';
+}
+
+async function uploadPickupReleaseDocuments(
+  releaseId: string,
+  files: {
+    dni?: File;
+    driverLicense?: File;
+    other?: File[];
+  }
+): Promise<PickupReleaseDocumentPaths> {
+  const base = `pickup-releases/${releaseId}`;
+  const out: PickupReleaseDocumentPaths = {};
+  if (files.dni) {
+    const path = `${base}/dni_${sanitizePickupFileName(files.dni.name)}`;
+    const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, files.dni, {
+      upsert: true,
+      contentType: files.dni.type || undefined,
+    });
+    if (error) throw error;
+    out.dni = path;
+  }
+  if (files.driverLicense) {
+    const path = `${base}/license_${sanitizePickupFileName(files.driverLicense.name)}`;
+    const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, files.driverLicense, {
+      upsert: true,
+      contentType: files.driverLicense.type || undefined,
+    });
+    if (error) throw error;
+    out.driverLicense = path;
+  }
+  if (files.other?.length) {
+    out.other = [];
+    for (let i = 0; i < files.other.length; i++) {
+      const f = files.other[i];
+      const path = `${base}/other_${i}_${sanitizePickupFileName(f.name)}`;
+      const { error } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, f, {
+        upsert: true,
+        contentType: f.type || undefined,
+      });
+      if (error) throw error;
+      out.other!.push(path);
+    }
+  }
+  return out;
+}
+
+async function attachPickupReleases(orders: Order[]): Promise<void> {
+  const ids = orders.map((o) => o.id).filter(Boolean);
+  if (ids.length === 0) return;
+  const { data, error } = await supabase.from('pickup_releases').select('*').in('order_id', ids);
+  if (error || !data?.length) {
+    orders.forEach((o) => {
+      if (o.pickupRelease === undefined) o.pickupRelease = null;
+    });
+    return;
+  }
+  const byOrder = new Map<string, PickupRelease>();
+  data.forEach((row: any) => byOrder.set(row.order_id, transformPickupReleaseRow(row)));
+  orders.forEach((o) => {
+    o.pickupRelease = byOrder.get(o.id) ?? null;
+  });
 }
 
 // Trucks
@@ -347,6 +487,31 @@ export const trucksApi = {
   updateStatus: async (id: string, status: string): Promise<void> => {
     const { error } = await supabase.from('trucks').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) throw error;
+  },
+
+  create: async (payload: {
+    licensePlate: string;
+    capacity: number;
+    type: 'old' | 'new';
+    driverId?: string;
+    lastMaintenance?: string;
+    nextMaintenance?: string;
+  }): Promise<Truck> => {
+    const { data, error } = await supabase
+      .from('trucks')
+      .insert({
+        license_plate: payload.licensePlate.trim(),
+        capacity: payload.capacity,
+        type: payload.type,
+        status: 'available',
+        driver_id: payload.driverId || null,
+        last_maintenance: payload.lastMaintenance || null,
+        next_maintenance: payload.nextMaintenance || null,
+      })
+      .select('*, drivers(name)')
+      .single();
+    if (error) throw error;
+    return transformTruck(data);
   },
 };
 
@@ -582,6 +747,8 @@ function transformQCTest(row: any): QCTest {
 }
 
 // Invoices
+const INVOICES_BUCKET = 'invoices';
+
 export const invoicesApi = {
   getAll: async (): Promise<Invoice[]> => {
     const { data, error } = await supabase
@@ -591,6 +758,56 @@ export const invoicesApi = {
     
     if (error) throw error;
     return data.map(transformInvoice);
+  },
+
+  getForCustomer: async (customerId: string): Promise<Invoice[]> => {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('*, orders(order_number), customers(name)')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(transformInvoice);
+  },
+
+  /** Upload PDF and save path on invoice row */
+  uploadInvoicePdf: async (invoiceId: string, file: File): Promise<string> => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${invoiceId}/${safeName}`;
+    const { error: upErr } = await supabase.storage
+      .from(INVOICES_BUCKET)
+      .upload(path, file, { upsert: true, contentType: 'application/pdf' });
+    if (upErr) throw upErr;
+    const { error: dbErr } = await supabase
+      .from('invoices')
+      .update({ invoice_pdf_storage_path: path, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId);
+    if (dbErr) throw dbErr;
+    return path;
+  },
+
+  getInvoicePdfSignedUrl: async (storagePath: string, expiresInSec = 3600): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from(INVOICES_BUCKET)
+      .createSignedUrl(storagePath, expiresInSec);
+    if (error) {
+      console.error('Signed URL error:', error);
+      return null;
+    }
+    return data?.signedUrl ?? null;
+  },
+
+  clearInvoicePdf: async (invoiceId: string): Promise<void> => {
+    const inv = await supabase.from('invoices').select('invoice_pdf_storage_path').eq('id', invoiceId).single();
+    const p = inv.data?.invoice_pdf_storage_path;
+    if (p) {
+      await supabase.storage.from(INVOICES_BUCKET).remove([p]);
+    }
+    const { error } = await supabase
+      .from('invoices')
+      .update({ invoice_pdf_storage_path: null, updated_at: new Date().toISOString() })
+      .eq('id', invoiceId);
+    if (error) throw error;
   },
 };
 
@@ -612,8 +829,92 @@ function transformInvoice(row: any): Invoice {
     paidDate: row.paid_date,
     attachments: {},
     daysOutstanding: row.days_outstanding,
+    invoicePdfStoragePath: row.invoice_pdf_storage_path ?? null,
   };
 }
+
+// Pickup releases (weights + ID at gate)
+export const pickupReleasesApi = {
+  getByOrderId: async (orderId: string): Promise<PickupRelease | null> => {
+    const { data, error } = await supabase.from('pickup_releases').select('*').eq('order_id', orderId).maybeSingle();
+    if (error) throw error;
+    return data ? transformPickupReleaseRow(data) : null;
+  },
+
+  create: async (payload: {
+    orderId: string;
+    emptyWeightTons: number;
+    loadedWeightTons: number;
+    driverName: string;
+    driverLicenseNumber?: string;
+    driverIdDocument?: string;
+    truckId?: string;
+    vehiclePlate?: string;
+    notes?: string;
+    releasedByUserId?: string;
+    /** Scanned DNI / license / other — uploaded to Storage bucket `documents` after row insert */
+    files?: {
+      dni?: File;
+      driverLicense?: File;
+      other?: File[];
+    };
+  }): Promise<PickupRelease> => {
+    if (payload.loadedWeightTons < payload.emptyWeightTons) {
+      throw new Error('Loaded weight must be >= empty weight');
+    }
+    const { data, error } = await supabase
+      .from('pickup_releases')
+      .insert({
+        order_id: payload.orderId,
+        empty_weight_tons: payload.emptyWeightTons,
+        loaded_weight_tons: payload.loadedWeightTons,
+        driver_name: payload.driverName,
+        driver_license_number: payload.driverLicenseNumber ?? null,
+        driver_id_document: payload.driverIdDocument ?? null,
+        truck_id: payload.truckId ?? null,
+        vehicle_plate: payload.vehiclePlate ?? null,
+        notes: payload.notes ?? null,
+        released_by_user_id: payload.releasedByUserId ?? null,
+        document_storage_paths: {} as Record<string, unknown>,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    const releaseId = data.id as string;
+    const f = payload.files;
+    const hasFiles =
+      f && (f.dni || f.driverLicense || (f.other && f.other.length > 0));
+
+    try {
+      if (hasFiles && f) {
+        const paths = await uploadPickupReleaseDocuments(releaseId, f);
+        const { error: pathErr } = await supabase
+          .from('pickup_releases')
+          .update({ document_storage_paths: paths as Record<string, unknown> })
+          .eq('id', releaseId);
+        if (pathErr) throw pathErr;
+        (data as any).document_storage_paths = paths;
+      }
+    } catch (uploadErr) {
+      await supabase.from('pickup_releases').delete().eq('id', releaseId);
+      throw uploadErr;
+    }
+
+    await ordersApi.updateStatus(payload.orderId, 'delivered');
+    return transformPickupReleaseRow(data);
+  },
+
+  /** Signed URL for staff to open a stored document (bucket `documents`). */
+  getDocumentSignedUrl: async (storagePath: string, expiresInSec = 3600): Promise<string | null> => {
+    const { data, error } = await supabase.storage.from(DOCUMENTS_BUCKET).createSignedUrl(storagePath, expiresInSec);
+    if (error) {
+      console.error('Pickup document signed URL:', error);
+      return null;
+    }
+    return data?.signedUrl ?? null;
+  },
+};
 
 // Helpers for rule-based recommendations
 function matchesRule(rule: Rule, ctx: { orderTons: number; urgency: string; customerId: string; deliveryLocation: string }): boolean {
@@ -691,6 +992,10 @@ export const dispatcherApi = {
       inventoryApi.getBalances().catch(() => [] as InventoryBalanceRow[]),
     ]);
     if (!order) return [];
+
+    if (order.fulfillmentType === 'pickup') {
+      return [];
+    }
 
     const orderTons = order.products.reduce((s, p) => s + p.quantity, 0);
     const onsiteAvailable = balances
@@ -1914,4 +2219,3 @@ export const tasksApi = {
     return out;
   },
 };
-

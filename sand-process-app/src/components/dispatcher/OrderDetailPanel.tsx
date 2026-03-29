@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Paper, Typography, Chip, Divider } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { Order, OrderStatus } from '../../types';
 
 interface OrderDetailPanelProps {
@@ -10,6 +11,7 @@ const getStatusColor = (s: OrderStatus) =>
   ({ pending: 'default', confirmed: 'info', in_production: 'warning', qc: 'warning', ready: 'success', dispatched: 'info', delivered: 'success', completed: 'success', invoiced: 'success' }[s] || 'default');
 
 export const OrderDetailPanel: React.FC<OrderDetailPanelProps> = ({ order }) => {
+  const { t } = useTranslation();
   if (!order) {
     return (
       <Paper sx={{ p: 3, height: '100%', minHeight: 280 }}>
@@ -22,9 +24,20 @@ export const OrderDetailPanel: React.FC<OrderDetailPanelProps> = ({ order }) => 
 
   return (
     <Paper sx={{ p: 3, height: '100%', minHeight: 280 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h6">{order.orderNumber}</Typography>
-        <Chip label={order.status} size="small" color={getStatusColor(order.status) as any} />
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          <Chip
+            size="small"
+            variant="outlined"
+            label={
+              order.fulfillmentType === 'pickup'
+                ? t('modules.orders.fulfillmentShortPickup')
+                : t('modules.orders.fulfillmentShortDelivery')
+            }
+          />
+          <Chip label={order.status} size="small" color={getStatusColor(order.status) as any} />
+        </Box>
       </Box>
       <Divider sx={{ mb: 2 }} />
       <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -34,12 +47,20 @@ export const OrderDetailPanel: React.FC<OrderDetailPanelProps> = ({ order }) => 
         {order.customerName || '—'}
       </Typography>
       <Typography variant="body2" color="text.secondary" gutterBottom>
-        Location
+        {order.fulfillmentType === 'pickup' ? t('modules.pickup.pickupLocation') : t('modules.orders.deliveryLocation')}
       </Typography>
       <Typography variant="body1" sx={{ mb: 1.5 }}>
-        {order.deliveryLocation || '—'}
-        {order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}
+        {order.fulfillmentType === 'pickup'
+          ? [order.pickupLocation, order.pickupAddress].filter(Boolean).join(' · ') || order.deliveryLocation || '—'
+          : `${order.deliveryLocation || '—'}${order.deliveryAddress ? ` · ${order.deliveryAddress}` : ''}`}
       </Typography>
+      {order.fulfillmentType === 'pickup' && (order.pickupWindowStart || order.pickupWindowEnd) && (
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          {order.pickupWindowStart && new Date(order.pickupWindowStart).toLocaleString()}
+          {order.pickupWindowStart && order.pickupWindowEnd ? ' – ' : ''}
+          {order.pickupWindowEnd && new Date(order.pickupWindowEnd).toLocaleString()}
+        </Typography>
+      )}
       <Typography variant="body2" color="text.secondary" gutterBottom>
         Product · Quantity
       </Typography>

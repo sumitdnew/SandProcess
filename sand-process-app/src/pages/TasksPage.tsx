@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -21,6 +22,7 @@ import { useApp } from '../context/AppContext';
 import type { TaskItem } from '../types';
 
 const TasksPage: React.FC = () => {
+  const { t } = useTranslation();
   const { currentRole } = useApp();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -39,12 +41,12 @@ const TasksPage: React.FC = () => {
       const data = await tasksApi.getForRole(currentRole);
       setTasks(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load tasks.');
+      setError(e instanceof Error ? e.message : t('pages.tasks.failedToLoad'));
       setTasks([]);
     } finally {
       setLoading(false);
     }
-  }, [currentRole]);
+  }, [currentRole, t]);
 
   useEffect(() => {
     load();
@@ -61,11 +63,11 @@ const TasksPage: React.FC = () => {
   return (
     <Box>
       <PageHeader
-        title="Tasks"
-        subtitle="Tasks assigned to your role. Open a task to view details."
+        title={t('pages.tasks.title')}
+        subtitle={t('pages.tasks.subtitle')}
         action={
           <Button startIcon={<RefreshIcon />} onClick={load} disabled={loading}>
-            Refresh
+            {t('common.refresh')}
           </Button>
         }
       />
@@ -78,33 +80,33 @@ const TasksPage: React.FC = () => {
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <AssignmentIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No tasks right now
+            {t('pages.tasks.noTasks')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Tasks will appear here when there is work assigned to your role.
+            {t('pages.tasks.tasksWillAppear')}
           </Typography>
         </Paper>
       ) : (
         <Grid container spacing={2}>
-          {tasks.map((t) => (
-            <Grid item xs={12} sm={6} md={4} key={t.id}>
+          {tasks.map((task) => (
+            <Grid item xs={12} sm={6} md={4} key={task.id}>
               <Card variant="outlined">
-                <CardActionArea onClick={() => navigate(t.link)}>
+                <CardActionArea onClick={() => navigate(task.link)}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      {t.title}
+                      {t(`pages.tasks.taskTitles.${task.id}` as const) || task.title}
                     </Typography>
-                    {t.subtitle && (
+                    {task.subtitle && (
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {t.subtitle}
+                        {task.subtitle}
                       </Typography>
                     )}
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2 }}>
                       <Typography variant="body2" color="primary" fontWeight={600}>
-                        {t.count} {t.count === 1 ? 'task' : 'tasks'}
+                        {task.count} {task.count === 1 ? t('pages.tasks.task') : t('pages.tasks.tasks')}
                       </Typography>
                       <Button size="small" endIcon={<ArrowForwardIcon />}>
-                        View
+                        {t('pages.tasks.view')}
                       </Button>
                     </Box>
                   </CardContent>

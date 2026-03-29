@@ -49,6 +49,8 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  /** When role is customer_user, links to customers.id */
+  customerId?: string;
 }
 
 export interface TaskItem {
@@ -91,6 +93,8 @@ export interface Product {
   description: string;
 }
 
+export type FulfillmentType = 'delivery' | 'pickup';
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -110,6 +114,18 @@ export interface Order {
   totalAmount: number;
   createdAt: string;
   notes?: string;
+  /** Shipped to site vs customer pickup at yard/quarry */
+  fulfillmentType: FulfillmentType;
+  /** Pickup: where to collect (label) */
+  pickupLocation?: string;
+  pickupAddress?: string;
+  pickupWindowStart?: string;
+  pickupWindowEnd?: string;
+  pickupInstructions?: string;
+  /** Declared / expected tons (pickup comms); net from release on pickup_releases */
+  orderWeightTons?: number;
+  /** Latest pickup release when loaded */
+  pickupRelease?: PickupRelease | null;
   /** Dispatcher: priority (optional, derived or from rules) */
   priority?: 'low' | 'normal' | 'high' | 'urgent';
   /** Dispatcher: requested delivery window (e.g. "8:00–12:00") */
@@ -118,6 +134,31 @@ export interface Order {
   assignedSourceId?: string;
   /** Dispatcher: assigned truck id */
   assignedTruckId?: string;
+}
+
+/** Paths in Supabase Storage bucket `documents` (e.g. pickup-releases/{releaseId}/dni_....pdf) */
+export interface PickupReleaseDocumentPaths {
+  dni?: string | null;
+  driverLicense?: string | null;
+  /** Additional files (BOL, photos, etc.) */
+  other?: string[];
+}
+
+export interface PickupRelease {
+  id: string;
+  orderId: string;
+  emptyWeightTons: number;
+  loadedWeightTons: number;
+  driverName: string;
+  driverLicenseNumber?: string;
+  driverIdDocument?: string;
+  truckId?: string;
+  vehiclePlate?: string;
+  releasedAt: string;
+  releasedByUserId?: string;
+  notes?: string;
+  createdAt: string;
+  documentStoragePaths?: PickupReleaseDocumentPaths | null;
 }
 
 export type RecommendationSourceType = 'QUARRY_WAREHOUSE' | 'NEAR_WELL_WAREHOUSE' | 'TRUCK_IN_TRANSIT' | 'PRODUCE';
@@ -405,6 +446,8 @@ export interface Invoice {
     traceabilityReport?: string;
   };
   daysOutstanding: number;
+  /** Path in Supabase Storage bucket `invoices` for uploaded PDF */
+  invoicePdfStoragePath?: string | null;
 }
 
 export interface Inventory {

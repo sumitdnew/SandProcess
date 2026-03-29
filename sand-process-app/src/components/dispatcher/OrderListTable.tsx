@@ -15,6 +15,7 @@ import {
   InputAdornment,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { Order, OrderStatus } from '../../types';
 
 interface OrderListTableProps {
@@ -28,6 +29,8 @@ interface OrderListTableProps {
   onSearchTermChange: (v: string) => void;
   loading?: boolean;
 }
+
+type FulfillmentFilter = 'all' | 'delivery' | 'pickup';
 
 const statusOptions: { value: string; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -53,6 +56,9 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
   onSearchTermChange,
   loading,
 }) => {
+  const { t } = useTranslation();
+  const [fulfillmentFilter, setFulfillmentFilter] = React.useState<FulfillmentFilter>('all');
+
   const filtered = orders.filter((o) => {
     const matchSearch =
       !searchTerm ||
@@ -66,7 +72,11 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
         (o.status === 'pending' || o.status === 'ready' || o.status === 'confirmed') &&
         !hasDelivery) ||
       (statusFilter !== 'unassigned' && o.status === statusFilter);
-    return matchSearch && matchStatus;
+    const matchFulfillment =
+      fulfillmentFilter === 'all' ||
+      (fulfillmentFilter === 'delivery' && o.fulfillmentType === 'delivery') ||
+      (fulfillmentFilter === 'pickup' && o.fulfillmentType === 'pickup');
+    return matchSearch && matchStatus && matchFulfillment;
   });
 
   const orderTons = (o: Order) => o.products.reduce((s, p) => s + p.quantity, 0);
@@ -102,6 +112,18 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
             </MenuItem>
           ))}
         </TextField>
+        <TextField
+          select
+          size="small"
+          label={t('pages.dispatcher.fulfillmentFilter')}
+          value={fulfillmentFilter}
+          onChange={(e) => setFulfillmentFilter(e.target.value as FulfillmentFilter)}
+          sx={{ minWidth: 150 }}
+        >
+          <MenuItem value="all">{t('pages.dispatcher.allFulfillment')}</MenuItem>
+          <MenuItem value="delivery">{t('pages.dispatcher.deliveryOnly')}</MenuItem>
+          <MenuItem value="pickup">{t('pages.dispatcher.pickupOnly')}</MenuItem>
+        </TextField>
       </Box>
       <TableContainer component={Paper} sx={{ maxHeight: 440, overflow: 'auto' }}>
         <Table size="small" stickyHeader>
@@ -111,6 +133,7 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
               <TableCell>Customer</TableCell>
               <TableCell>Location</TableCell>
               <TableCell>Size</TableCell>
+              <TableCell>{t('pages.dispatcher.fulfillmentFilter')}</TableCell>
               <TableCell>Delivery</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>
@@ -118,13 +141,13 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                   Loading…
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">No orders match filters.</Typography>
                 </TableCell>
               </TableRow>
@@ -145,6 +168,18 @@ export const OrderListTable: React.FC<OrderListTableProps> = ({
                   <TableCell>{o.customerName || '—'}</TableCell>
                   <TableCell>{o.deliveryLocation || '—'}</TableCell>
                   <TableCell>{orderTons(o)} t</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={
+                        o.fulfillmentType === 'pickup'
+                          ? t('modules.orders.fulfillmentShortPickup')
+                          : t('modules.orders.fulfillmentShortDelivery')
+                      }
+                      color={o.fulfillmentType === 'pickup' ? 'warning' : 'default'}
+                      variant="outlined"
+                    />
+                  </TableCell>
                   <TableCell>{o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString() : '—'}</TableCell>
                   <TableCell>
                     <Chip label={o.status} size="small" color={getStatusColor(o.status) as any} />
